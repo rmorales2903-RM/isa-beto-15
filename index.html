@@ -8,24 +8,26 @@
   <style>
     *{margin:0;padding:0;box-sizing:border-box}
     body{font-family:system-ui;background:#0f172a;color:#e2e8f0;padding-bottom:80px}
- .header{background:#1e293b;padding:16px;position:sticky;top:0;z-index:10}
- .header-top{display:flex;justify-content:space-between;align-items:center}
- .nome-viagem{font-weight:bold;font-size:18px}
- .codigo-viagem{background:#334155;padding:6px 12px;border-radius:6px;font-family:monospace;font-size:16px;letter-spacing:2px}
- .tela{padding:20px;display:none}
- .tela.ativa{display:block}
- .btn{background:#3b82f6;color:white;border:none;padding:14px;border-radius:8px;cursor:pointer;width:100%;font-size:16px;margin:8px 0}
- .btn-verde{background:#16a34a}
- .btn-vermelho{background:#dc2626}
- .btn-cinza{background:#475569}
-    input{width:100%;padding:12px;margin:8px 0;background:#334155;border:1px solid #475569;color:white;border-radius:6px;font-size:16px;text-transform:uppercase}
- .card{background:#1e293b;padding:16px;border-radius:8px;margin:12px 0}
- .tabs{display:flex;overflow-x:auto;background:#1e293b;position:fixed;bottom:0;left:0;right:0}
- .tab{padding:12px 16px;cursor:pointer;white-space:nowrap;font-size:14px}
- .tab.ativo{background:#334155;border-top:2px solid #3b82f6}
- .sos{position:fixed;bottom:80px;right:20px;background:#dc2626;color:white;border:none;border-radius:50%;width:60px;height:60px;font-size:24px;cursor:pointer}
- .codigo-grande{font-size:36px;text-align:center;padding:20px;background:#334155;border-radius:8px;letter-spacing:6px;font-weight:bold;margin:16px 0}
- .hidden{display:none}
+.header{background:#1e293b;padding:16px;position:sticky;top:0;z-index:10}
+.header-top{display:flex;justify-content:space-between;align-items:center}
+.nome-viagem{font-weight:bold;font-size:18px}
+.codigo-viagem{background:#334155;padding:6px 12px;border-radius:6px;font-family:monospace;font-size:16px;letter-spacing:2px}
+.tela{padding:20px;display:none}
+.tela.ativa{display:block}
+.btn{background:#3b82f6;color:white;border:none;padding:14px;border-radius:8px;cursor:pointer;width:100%;font-size:16px;margin:8px 0}
+.btn-verde{background:#16a34a}
+.btn-vermelho{background:#dc2626}
+.btn-cinza{background:#475569}
+    input{width:100%;padding:12px;margin:8px 0;background:#334155;border:1px solid #475569;color:white;border-radius:6px;font-size:16px}
+.card{background:#1e293b;padding:16px;border-radius:8px;margin:12px 0}
+.tabs{display:flex;overflow-x:auto;background:#1e293b;position:fixed;bottom:0;left:0;right:0}
+.tab{padding:12px 16px;cursor:pointer;white-space:nowrap;font-size:14px}
+.tab.ativo{background:#334155;border-top:2px solid #3b82f6}
+.sos{position:fixed;bottom:80px;right:20px;background:#dc2626;color:white;border:none;border-radius:50%;width:60px;height:60px;font-size:24px;cursor:pointer}
+.codigo-grande{font-size:36px;text-align:center;padding:20px;background:#334155;border-radius:8px;letter-spacing:6px;font-weight:bold;margin:16px 0}
+.hidden{display:none}
+.loading{text-align:center;padding:20px;color:#94a3b8}
+.erro{background:#7f1d1d;padding:12px;border-radius:6px;margin:8px 0}
   </style>
 </head>
 <body>
@@ -37,10 +39,11 @@
   </div>
 
   <div id="login" class="tela ativa">
+    <div id="erroLogin" class="erro hidden"></div>
     <div class="card">
       <h2>Entrar na Viagem</h2>
       <p>Digite o código que recebeu no WhatsApp</p>
-      <input id="inputCodigoLogin" placeholder="CÓDIGO DA VIAGEM" maxlength="6">
+      <input id="inputCodigoLogin" placeholder="CÓDIGO DA VIAGEM" maxlength="6" style="text-transform:uppercase">
       <button class="btn" onclick="entrarComCodigo()">Entrar</button>
     </div>
     <div class="card">
@@ -50,12 +53,14 @@
   </div>
 
   <div id="criar" class="tela">
+    <div id="erroCriar" class="erro hidden"></div>
     <div class="card">
       <h3>Criar Nova Viagem</h3>
       <input id="nomeViagem" placeholder="Nome da viagem" value="15 anos da Isa - Beto Carrero 2026">
       <input id="dataInicio" type="date" value="2026-04-19">
       <input id="dataFim" type="date" value="2026-04-25">
       <button class="btn" onclick="criarViagem()">Criar e Gerar Código</button>
+      <div id="msgCriar" class="loading hidden">Criando...</div>
     </div>
     <button class="btn btn-cinza" onclick="mostrarTela('login')">Voltar</button>
   </div>
@@ -72,7 +77,7 @@
   </div>
 
   <div id="viagem" class="tela">
-    <div class="card" id="adminCard">
+    <div class="card">
       <b>Você é o admin desta viagem</b>
       <button class="btn btn-verde" onclick="copiarLinkWhatsApp()" style="margin-top:8px">Copiar Link pro WhatsApp</button>
     </div>
@@ -102,7 +107,14 @@
     let viagemAtual = null;
     let codigoAtual = null;
 
-    window.onload = () => {
+    // LINHA MAIS IMPORTANTE: FAZ LOGIN ANÔNIMO AUTOMÁTICO
+    window.onload = async () => {
+      const { error } = await supabase.auth.signInAnonymously();
+      if (error) {
+        document.getElementById('erroLogin').innerText = 'Erro ao conectar: ' + error.message;
+        document.getElementById('erroLogin').classList.remove('hidden');
+        return;
+      }
       const params = new URLSearchParams(window.location.search);
       const codigoUrl = params.get('codigo');
       if (codigoUrl) {
@@ -114,6 +126,8 @@
     function mostrarTela(id) {
       document.querySelectorAll('.tela').forEach(t => t.classList.remove('ativa'));
       document.getElementById(id).classList.add('ativa');
+      document.getElementById('erroLogin').classList.add('hidden');
+      document.getElementById('erroCriar').classList.add('hidden');
     }
 
     function gerarCodigo() {
@@ -121,6 +135,8 @@
     }
 
     async function criarViagem() {
+      document.getElementById('msgCriar').classList.remove('hidden');
+      document.getElementById('erroCriar').classList.add('hidden');
       const nome = document.getElementById('nomeViagem').value;
       const inicio = document.getElementById('dataInicio').value;
       const fim = document.getElementById('dataFim').value;
@@ -133,8 +149,11 @@
         end_date: fim
       }).select().single();
 
+      document.getElementById('msgCriar').classList.add('hidden');
+
       if (error) {
-        alert('Erro: ' + error.message);
+        document.getElementById('erroCriar').innerText = 'Erro: ' + error.message;
+        document.getElementById('erroCriar').classList.remove('hidden');
         return;
       }
 
@@ -147,14 +166,16 @@
     async function entrarComCodigo() {
       const codigo = document.getElementById('inputCodigoLogin').value.toUpperCase().trim();
       if (!codigo) {
-        alert('Digita o código primeiro');
+        document.getElementById('erroLogin').innerText = 'Digita o código primeiro';
+        document.getElementById('erroLogin').classList.remove('hidden');
         return;
       }
 
-      const { data, error } = await supabase.from('trips').select().eq('code', codigo).eq('deleted_at', null).single();
+      const { data, error } = await supabase.from('trips').select().eq('code', codigo).is('deleted_at', null).single();
 
       if (error ||!data) {
-        alert('Código inválido! Confere com quem te mandou.');
+        document.getElementById('erroLogin').innerText = 'Código inválido! Confere com quem te mandou.';
+        document.getElementById('erroLogin').classList.remove('hidden');
         return;
       }
 
@@ -167,8 +188,6 @@
       document.getElementById('codigoHeader').innerText = codigoAtual;
       document.getElementById('codigoHeader').classList.remove('hidden');
       document.getElementById('nomeViagemHeader').innerText = viagemAtual.name;
-      document.getElementById('adminCard').classList.remove('hidden');
-
       mostrarTela('viagem');
       mudarAba('Roteiro');
     }
