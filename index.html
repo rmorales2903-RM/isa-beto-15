@@ -32,9 +32,6 @@ body{background:var(--cinza);color:var(--cinza-escuro)}
 .file-item{background:var(--cinza);padding:8px;border-radius:6px;margin:4px 0;display:flex;justify-content:space-between;align-items:center}
 .file-item a{color:var(--azul);text-decoration:none;font-weight:600}
 .label{font-weight:600;margin-top:12px;display:block;font-size:14px}
-.subtab{display:flex;gap:8px;margin-bottom:12px}
-.subtab button{flex:1;padding:10px;border:none;border-radius:8px;background:var(--cinza);cursor:pointer;font-weight:600}
-.subtab button.active{background:var(--azul);color:var(--branco)}
 </style>
 </head>
 <body>
@@ -119,20 +116,14 @@ async function fazerCadastro(){
   const username = document.getElementById('cadUsername').value.trim().toLowerCase();
   const nome = document.getElementById('cadNome').value.trim();
   const password = document.getElementById('cadPassword').value;
-
   if(!username ||!password ||!nome) return alert('Preenche todos os campos');
   if(username.length < 3) return alert('Usuário precisa ter 3+ caracteres');
   if(password.length < 4) return alert('Senha precisa ter 4+ caracteres');
-
-  const {data, error} = await supabaseClient.from('users').insert({
-    username, password, nome_completo: nome
-  }).select().single();
-
+  const {data, error} = await supabaseClient.from('users').insert({username, password, nome_completo: nome}).select().single();
   if(error){
     if(error.message.includes('duplicate')) return alert('Esse nome de usuário já existe');
     return alert('Erro ao cadastrar: ' + error.message);
   }
-
   alert('Conta criada! Fazendo login...');
   usuario = data;
   localStorage.setItem('usuario_logado', JSON.stringify(data));
@@ -142,18 +133,10 @@ async function fazerCadastro(){
 async function fazerLogin(){
   const username = document.getElementById('username').value.trim().toLowerCase();
   const password = document.getElementById('password').value;
-
   if(!username ||!password) return alert('Preenche usuário e senha');
-
-  const {data: users, error} = await supabaseClient
-.from('users')
-.select('*')
-.eq('username', username)
-.eq('password', password);
-
+  const {data: users, error} = await supabaseClient.from('users').select('*').eq('username', username).eq('password', password);
   if(error) return alert('Erro no banco: ' + error.message);
   if(!users || users.length === 0) return alert('Usuário ou senha incorretos');
-
   usuario = users[0];
   localStorage.setItem('usuario_logado', JSON.stringify(users[0]));
   await carregarApp();
@@ -203,9 +186,7 @@ async function criarViagem(){
   const nome = document.getElementById('viagemNome').value;
   const inicio = document.getElementById('viagemInicio').value;
   const fim = document.getElementById('viagemFim').value;
-  const {data, error} = await supabaseClient.from('trips').insert({
-    name: nome, start_date: inicio, end_date: fim, admin_id: usuario.id
-  }).select().single();
+  const {data, error} = await supabaseClient.from('trips').insert({name: nome, start_date: inicio, end_date: fim, admin_id: usuario.id}).select().single();
   if(error) return alert('Erro: ' + error.message);
   viagemAtual = data;
   alert('Viagem criada! Código: ' + data.code);
@@ -243,9 +224,7 @@ async function criarFamilia(){
   const pin = document.getElementById('famPin').value;
   if(pin.length!== 4) return alert('PIN deve ter 4 dígitos');
   const pinHash = btoa(pin);
-  const {data, error} = await supabaseClient.from('families').insert({
-    trip_id: viagemAtual.id, name: nome, pin_hash: pinHash, created_by: usuario.id
-  }).select().single();
+  const {data, error} = await supabaseClient.from('families').insert({trip_id: viagemAtual.id, name: nome, pin_hash: pinHash, created_by: usuario.id}).select().single();
   if(error) return alert('Erro: ' + error.message);
   await entrarFamilia(data.id, data.name);
 }
@@ -257,9 +236,7 @@ async function entrarFamilia(familiaId, familiaNome){
   if(btoa(pin)!== fam.pin_hash) return alert('PIN incorreto');
   familiaAtual = fam;
   sessaoValida = true;
-  localStorage.setItem('familia_sessao', JSON.stringify({
-    familia: fam, expira: Date.now() + 7*24*60*60*1000
-  }));
+  localStorage.setItem('familia_sessao', JSON.stringify({familia: fam, expira: Date.now() + 7*24*60*60*1000}));
   mostrarAbas();
 }
 
@@ -294,19 +271,13 @@ async function uploadArquivo(inputId, categoria, referenciaId){
   const fileInput = document.getElementById(inputId);
   const file = fileInput.files[0];
   if(!file) return null;
-
   const fileName = `${Date.now()}_${file.name}`;
-  const {data, error} = await supabaseClient.storage
-.from('documentos')
-.upload(fileName, file);
-
+  const {data, error} = await supabaseClient.storage.from('documentos').upload(fileName, file);
   if(error) {
     alert('Erro ao enviar arquivo: ' + error.message);
     return null;
   }
-
   const {data: {publicUrl}} = supabaseClient.storage.from('documentos').getPublicUrl(fileName);
-
   await supabaseClient.from('documents').insert({
     trip_id: viagemAtual.id,
     family_id: familiaAtual.id,
@@ -316,19 +287,14 @@ async function uploadArquivo(inputId, categoria, referenciaId){
     url: publicUrl,
     created_by: usuario.id
   });
-
   return publicUrl;
 }
 
 async function buscarDocs(categoria, referenciaId){
-  const {data} = await supabaseClient.from('documents')
-.select('*')
-.eq('categoria', categoria)
-.eq('referencia_id', referenciaId);
+  const {data} = await supabaseClient.from('documents').select('*').eq('categoria', categoria).eq('referencia_id', referenciaId);
   return data || [];
 }
 
-// PARQUES
 async function carregarParques(){
   const {data: atracoes} = await supabaseClient.from('public_attraction_summary').select('*').eq('trip_id', viagemAtual.id);
   const agrupado = {};
@@ -338,7 +304,6 @@ async function carregarParques(){
   });
   let html = '<h2>🎢 Parques e Atrações</h2><button class="btn" onclick="mostrarFormAtracao()">+ Nova Atração</button>';
   if(Object.keys(agrupado).length === 0) html += '<div class="card"><p>Nenhuma atração cadastrada ainda.</p></div>';
-
   for(const a of Object.values(agrupado)){
     const total = a.familias.reduce((s,f)=>s+f.qtd, 0);
     const docs = await buscarDocs('atracao', a.id);
@@ -375,15 +340,9 @@ async function salvarNovaAtracao(){
   const hora = document.getElementById('atrHora').value;
   const local = document.getElementById('atrLocal').value;
   if(!nome) return alert('Preenche o nome');
-
-  const {data: atr, error} = await supabaseClient.from('attractions').insert({
-    trip_id: viagemAtual.id, nome, data, horario: hora, local, created_by: usuario.id
-  }).select().single();
-
+  const {data: atr, error} = await supabaseClient.from('attractions').insert({trip_id: viagemAtual.id, nome, data, horario: hora, local, created_by: usuario.id}).select().single();
   if(error) return alert('Erro: ' + error.message);
-
   await uploadArquivo('atrFile', 'atracao', atr.id);
-
   alert('Atração criada! Alarme 30min antes gerado.');
   carregarParques();
 }
@@ -405,21 +364,17 @@ async function salvarParticipacao(){
   const {data: membros} = await supabaseClient.from('members').select('*').eq('family_id', familiaAtual.id);
   const selecionados = membros.filter(m => document.getElementById('mem_'+m.id).checked);
   for(const m of selecionados){
-    await supabaseClient.from('attraction_tickets').upsert({
-      attraction_id: atracaoSelecionadaId, member_id: m.id
-    });
+    await supabaseClient.from('attraction_tickets').upsert({attraction_id: atracaoSelecionadaId, member_id: m.id});
   }
   alert('Participação salva! Alarme 30min antes criado automático.');
   fecharModal('modalParticipar');
   carregarParques();
 }
 
-// VOOS
 async function carregarVoos(){
   const {data: voos} = await supabaseClient.from('flights').select('*').eq('trip_id', viagemAtual.id).order('data_ida');
   let html = '<h2>✈️ Voos</h2><button class="btn" onclick="mostrarFormVoo()">+ Novo Voo</button>';
   if(!voos || voos.length === 0) html += '<div class="card"><p>Nenhum voo cadastrado.</p></div>';
-
   for(const v of voos || []){
     const docs = await buscarDocs('voo', v.id);
     html += `<div class="card">
@@ -471,21 +426,17 @@ async function salvarVoo(){
     created_by: usuario.id
   };
   if(!dados.companhia) return alert('Preenche a companhia');
-
   const {data: voo, error} = await supabaseClient.from('flights').insert(dados).select().single();
   if(error) return alert('Erro: ' + error.message);
-
   await uploadArquivo('vooFile', 'voo', voo.id);
   alert('Voo cadastrado! Alarme 3h antes gerado.');
   carregarVoos();
 }
 
-// HOSPEDAGEM
 async function carregarHoteis(){
   const {data: hoteis} = await supabaseClient.from('hotels').select('*').eq('trip_id', viagemAtual.id).order('checkin');
   let html = '<h2>🏨 Hospedagem</h2><button class="btn" onclick="mostrarFormHotel()">+ Novo Hotel</button>';
   if(!hoteis || hoteis.length === 0) html += '<div class="card"><p>Nenhum hotel cadastrado.</p></div>';
-
   for(const h of hoteis || []){
     const docs = await buscarDocs('hotel', h.id);
     html += `<div class="card">
@@ -532,21 +483,17 @@ async function salvarHotel(){
     created_by: usuario.id
   };
   if(!dados.nome) return alert('Preenche o nome do hotel');
-
   const {data: hotel, error} = await supabaseClient.from('hotels').insert(dados).select().single();
   if(error) return alert('Erro: ' + error.message);
-
   await uploadArquivo('hotelFile', 'hotel', hotel.id);
   alert('Hotel cadastrado!');
   carregarHoteis();
 }
 
-// TRANSPORTE
 async function carregarTransportes(){
   const {data: transps} = await supabaseClient.from('transports').select('*').eq('trip_id', viagemAtual.id).order('data');
   let html = '<h2>🚐 Transporte</h2><button class="btn" onclick="mostrarFormTransporte()">+ Novo Transporte</button>';
   if(!transps || transps.length === 0) html += '<div class="card"><p>Nenhum transporte cadastrado.</p></div>';
-
   for(const t of transps || []){
     const docs = await buscarDocs('transporte', t.id);
     html += `<div class="card">
@@ -592,16 +539,13 @@ async function salvarTransporte(){
     created_by: usuario.id
   };
   if(!dados.tipo) return alert('Preenche o tipo');
-
   const {data: transp, error} = await supabaseClient.from('transports').insert(dados).select().single();
   if(error) return alert('Erro: ' + error.message);
-
   await uploadArquivo('transpFile', 'transporte', transp.id);
   alert('Transporte cadastrado!');
   carregarTransportes();
 }
 
-// ALARMES
 async function carregarAlarmes(){
   const {data: alarmes} = await supabaseClient.from('alarms').select('*').eq('trip_id', viagemAtual.id).order('data_hora');
   let html = '<h2>🔔 Alarmes Automáticos</h2>';
@@ -613,11 +557,18 @@ async function carregarAlarmes(){
   document.getElementById('conteudo').innerHTML = html;
 }
 
-// DOCUMENTOS
 async function carregarDocs(){
   const {data: membros} = await supabaseClient.from('members').select('*').eq('family_id', familiaAtual.id);
-
   let html = '<h2>📄 Documentos da Família</h2>';
   html += '<div class="card"><h3>Cadastrar Membro</h3>';
   html += '<input id="memNome" class="input" placeholder="Nome completo">';
-  html += '<input
+  html += '<input id="memEmergNome" class="input" placeholder="Contato emergência: nome">';
+  html += '<input id="memEmergFone" class="input" placeholder="Contato emergência: telefone">';
+  html += '<input id="memMed" class="input" placeholder="Info médica: alergias, remédios">';
+  html += '<input id="memCpf" class="input" placeholder="CPF">';
+  html += '<input id="memRg" class="input" placeholder="RG">';
+  html += '<button class="btn" onclick="salvarMembro()">Salvar Membro</button></div>';
+
+  if(membros && membros.length > 0){
+    html += '<div class="card"><h3>Membros Cadastrados</h3>';
+    for(const m of
