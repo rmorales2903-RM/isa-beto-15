@@ -580,6 +580,71 @@ async function aba(nome, el){
     </div>`;
   }
 }
+// Carrega documentos do Supabase e renderiza na aba Documentos
+async function carregarDocs() {
+  const listaDocs = document.getElementById('listaDocs');
+  const abaDocs = document.getElementById('abaDocumentos');
+  
+  if (!listaDocs) {
+    console.error('Elemento #listaDocs não encontrado no HTML');
+    return;
+  }
+
+  // Mostra loading enquanto busca
+  listaDocs.innerHTML = '<li>Carregando documentos...</li>';
+
+  try {
+    // Busca todos os docs da tabela "documentos", mais recentes primeiro
+    const { data: docs, error } = await supabase
+      .from('documentos')
+      .select('*')
+      .order('created_at', { ascending: false });
+
+    if (error) throw error;
+
+    // Se não tiver documentos
+    if (!docs || docs.length === 0) {
+      listaDocs.innerHTML = '<li>Nenhum documento cadastrado ainda.</li>';
+      return;
+    }
+
+    // Limpa a lista e renderiza cada doc
+    listaDocs.innerHTML = '';
+    docs.forEach(doc => {
+      const li = document.createElement('li');
+      li.className = 'doc-item';
+      
+      // Ajuste os campos abaixo conforme sua tabela
+      li.innerHTML = `
+        <strong>${doc.titulo || 'Sem título'}</strong>
+        <p>${doc.descricao || ''}</p>
+        ${doc.url_arquivo ? `<a href="${doc.url_arquivo}" target="_blank">Abrir documento</a>` : ''}
+        <small>Criado em: ${new Date(doc.created_at).toLocaleDateString('pt-BR')}</small>
+      `;
+      
+      listaDocs.appendChild(li);
+    });
+
+  } catch (err) {
+    console.error('Erro ao carregar documentos:', err);
+    listaDocs.innerHTML = `<li style="color: red;">Erro ao carregar: ${err.message}</li>`;
+  }
+}
+
+// Chama a função quando clicar na aba Documentos
+document.addEventListener('DOMContentLoaded', () => {
+  const btnAbaDocs = document.getElementById('btnAbaDocumentos'); // ajuste o ID do seu botão/aba
+  if (btnAbaDocs) {
+    btnAbaDocs.addEventListener('click', carregarDocs);
+  }
+  
+  // Se a aba Documentos já inicia ativa, carrega direto
+  const abaDocsAtiva = document.querySelector('#abaDocumentos.active');
+  if (abaDocsAtiva) {
+    carregarDocs();
+  }
+});
+  
 </script>
 </body>
 </html>
