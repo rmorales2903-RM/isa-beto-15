@@ -265,8 +265,8 @@
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script>
-    const SUPABASE_URL = 'https://cfvipeilwbeppqxvqpid.supabase.co';
-    const SUPABASE_ANON_KEY = 'sb_publishable_gt9MVCBDhyHkLxmrMZnDjw_lKnogqS4';
+    const SUPABASE_URL = 'COLE_SUA_URL_AQUI';
+    const SUPABASE_ANON_KEY = 'COLE_SUA_ANON_KEY_AQUI';
 
     const state = {
       supabase: null,
@@ -508,7 +508,7 @@
       tabsWrap.innerHTML = '';
       tabs.forEach(t=>{
         const b = el('button', 'tab' + (state.currentTab===t.id?' active':''), t.label);
-        b.onclick = ()=> { state.currentTab = t.id; renderCurrentTab(); };
+        b.onclick = ()=> { state.currentTab = t.id; renderApp(); };
         tabsWrap.appendChild(b);
       });
       renderCurrentTab();
@@ -733,7 +733,7 @@
         if(!addr) return showToast('Informe o endereço primeiro.');
         window.open(`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(addr)}`, '_blank', 'noopener,noreferrer');
       };
-      $('#btnPreviewHotelMap').onclick = btnPreviewHotelMap;
+      form.querySelector('#btnPreviewHotelMap').onclick = btnPreviewHotelMap;
       btnAdd.onclick = async ()=>{
         const payload = {
           trip_id: state.currentTrip.id,
@@ -905,21 +905,24 @@
           <div>
             <h3>${escapeHtml(member.name)}</h3>
             <div class="fine">${escapeHtml(flight.origem||'')} → ${escapeHtml(flight.destino||'')} • ${escapeHtml(flight.cia||'')} ${escapeHtml(flight.numero_voo||'')}</div>
+            <div class="fine">Localizador: ${escapeHtml(ticket?.localizador || '')}</div>
             <div class="divider"></div>
             <div class="field"><label>Enviar / atualizar passagem</label><input id="uploadFlightTicket" type="file" accept=".pdf,image/*"></div>
             <div class="btn-row" style="margin-top:10px"><button class="btn" id="btnSaveFlightTicket">Salvar passagem</button></div>
+            <div class="inline-actions" style="margin-top:10px">${renderOpenOriginal(ticket?.ticket_url)}</div>
             <div class="divider"></div>
             <div class="media-box">${ticket?.ticket_url ? `<iframe class="viewer-iframe" src="${ticket.ticket_url}"></iframe>` : 'Nenhuma passagem enviada ainda.'}</div>
           </div>
           <div>
             <h3>CPF</h3>
             <div class="fine">Documento do membro</div>
+            <div class="inline-actions" style="margin:10px 0">${renderOpenOriginal(member.cpf_file_url)}</div>
             <div class="divider"></div>
             <div class="media-box">${member.cpf_file_url ? `<iframe class="viewer-iframe" src="${member.cpf_file_url}"></iframe>` : 'CPF não enviado ainda.'}</div>
           </div>
         </div>
       `);
-      $('#btnSaveFlightTicket').onclick = ()=> saveFlightTicket(flightId, memberId, $('#uploadFlightTicket').files[0], $('#flightLocator').value.trim());
+      $('#btnSaveFlightTicket').onclick = ()=> saveFlightTicket(flightId, memberId, $('#uploadFlightTicket').files[0], ticket?.localizador || '');
     }
 
     async function saveFlightTicket(flightId, memberId, file, localizador=''){
@@ -1473,7 +1476,7 @@ END:VCALENDAR`;
         const fam = state.cache.families.find(f=>f.id === $('#familySelect').value);
         const pin = $('#familyPinInput').value.trim();
         if(!fam) return showToast('Selecione a família.');
-        if(pin !== fam.pin_hash) return showToast('PIN inválido.');
+        if(String(pin).trim() !== String(fam.pin_hash || '').trim()) return showToast('PIN inválido.');
         state.currentFamily = fam;
         state.familyPinVerified = true;
         state.familyPin = pin;
