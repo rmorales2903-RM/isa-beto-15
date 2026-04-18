@@ -659,8 +659,8 @@
         <div class="field"><label>Responsável cadastrado</label><select id="fTransferProvider"><option value="">Selecione</option>${providerOptions}</select></div>
         <div class="field"><label>Origem</label><input id="fTransferOrigem" placeholder="Aeroporto NVT"></div>
         <div class="field"><label>Hospedagem cadastrada</label><select id="fTransferHotel"><option value="">Selecione uma hospedagem</option>${hotelOptions}</select></div>
-        <div class="field"><label>Outro destino</label><input id="fTransferDestinoManual" placeholder="Se não for hospedagem, digite aqui"></div>
-        <div class="field"><label>WhatsApp</label><input id="fTransferContato" placeholder="Preenchido pelo responsável"></div>
+        <div class="field"><label>Destino</label><input id="fTransferDestinoManual" placeholder="Se não for hospedagem, digite aqui"></div>
+        <div class="field"><label>WhatsApp</label><input id="fTransferContato" placeholder="Puxado do responsável ou da hospedagem"></div>
         <div class="field"><label>Placa</label><input id="fTransferPlaca" placeholder="ABC-1234"></div>
         <div class="field" style="grid-column:1/-1"><label>Observações</label><textarea id="fTransferObs" placeholder="Parada no mercado, cadeirinha, bagagens..."></textarea></div>`;
       const providerSelect = form.querySelector('#fTransferProvider');
@@ -674,19 +674,22 @@
         const h = state.cache.hotels.find(x=>x.id===hotelSelect.value);
         if(!h) return;
         $('#fTransferDestinoManual').value = `${h.nome}${h.endereco ? ' — '+h.endereco : ''}`;
+        $('#fTransferContato').value = h.whatsapp || h.contato || '';
       };
       const btn = el('button','btn','Adicionar translado');
       btn.onclick = async ()=>{
         const provider = state.cache.transportProviders.find(x=>x.id===$('#fTransferProvider').value);
+        const hotel = state.cache.hotels.find(x=>x.id===$('#fTransferHotel').value);
         const payload = {
           trip_id: state.currentTrip.id,
           data_hora: $('#fTransferData').value,
           responsavel: provider ? `${provider.empresa}${provider.responsavel ? ' - '+provider.responsavel:''}` : '',
           origem: $('#fTransferOrigem').value.trim(),
-          destino: ($('#fTransferDestinoManual').value.trim() || (()=>{ const h = state.cache.hotels.find(x=>x.id===$('#fTransferHotel').value); return h ? `${h.nome}${h.endereco ? ' — '+h.endereco : ''}` : ''; })()),
-          contato: $('#fTransferContato').value.trim() || provider?.whatsapp || '',
+          destino: $('#fTransferDestinoManual').value.trim() || (hotel ? `${hotel.nome}${hotel.endereco ? ' — '+hotel.endereco : ''}` : ''),
+          contato: $('#fTransferContato').value.trim() || (provider?.whatsapp || hotel?.whatsapp || hotel?.contato || ''),
           placa: $('#fTransferPlaca').value.trim(),
-          obs: $('#fTransferObs').value.trim()
+          obs: $('#fTransferObs').value.trim(),
+          provider_id: provider?.id || null
         };
         if(!payload.data_hora || !payload.origem || !payload.destino) return showToast('Preencha data, origem e destino.');
         const {error} = await state.supabase.from('transfers').insert(payload);
@@ -694,29 +697,21 @@
         await refreshAll(); renderApp();
       };
       card.append(form, btn, el('div','divider'));
+
       const list = el('div','list');
       if(!state.cache.transfers.length) list.innerHTML = '<div class="empty">Nenhum translado cadastrado.</div>';
       state.cache.transfers.forEach(t=>{
         const item = el('div','item');
-        item.innerHTML = `<div class="item-head">
-          <div><b>${escapeHtml(t.origem)} → ${escapeHtml(t.destino)}</b>
-          <div class="fine">${formatDate(t.data_hora)} • ${escapeHtml(t.responsavel || 'Responsável a definir')}</div>
-          <div class="inline-actions">${renderWhatsApp(t.contato, 'WhatsApp do transporte')}</div>
-          ${t.placa ? `<div class="fine">Placa: ${escapeHtml(t.placa)}</div>`:''}
-          ${t.obs ? `<div class="fine" style="margin-top:6px">${escapeHtml(t.obs)}</div>`:''}
-          </div>
-          <button class="btn secondary small">Criar alarme</button>
-        </div>`;
-        item.querySelector('button').onclick = async ()=>{
-          const {error} = await state.supabase.from('alarms').insert({
-            trip_id: state.currentTrip.id,
-            titulo: `Translado: ${t.origem} → ${t.destino}`,
-            descricao: t.responsavel || '',
-            data_hora: t.data_hora
-          });
-          if(error) return showToast(error.message);
-          await refreshAll(); renderApp(); showToast('Alarme criado.');
-        };
+        item.innerHTML = `
+          <div class="item-head">
+            <div>
+              <b>${formatDate(t.data_hora)}</b>
+              <div>${escapeHtml(t.origem)} → ${escapeHtml(t.destino)}</div>
+              <div class="fine">${escapeHtml(t.responsavel || 'Sem responsável')}</div>
+              <div class="inline-actions">${renderWhatsApp(t.contato || '', 'WhatsApp')} ${renderMaps(t.destino || '')}</div>
+              <div class="fine">${escapeHtml(t.obs || '')}</div>
+            </div>
+          </div>`;
         list.appendChild(item);
       });
       card.append(list);
@@ -740,12 +735,11 @@
       `;
       const btns = el('div','btn-row');
       const btnAdd = el('button','btn','Salvar hospedagem');
-      const btnPreviewHotelMap = ()=>{
+      form.querySelector('#btnPreviewHotelMap').onclick = ()=>{
         const addr = $('#fHotelEndereco').value.trim();
         if(!addr) return showToast('Informe o endereço primeiro.');
-        window.open(`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(addr)}`, '_blank', 'noopener,noreferrer');
+        window.open(`https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(addr)}`, '_blank', 'noopener,noreferrer');
       };
-      form.querySelector('#btnPreviewHotelMap').onclick = btnPreviewHotelMap;
       btnAdd.onclick = async ()=>{
         const payload = {
           trip_id: state.currentTrip.id,
@@ -754,14 +748,20 @@
           checkin: $('#fHotelCheckin').value || null,
           checkout: $('#fHotelCheckout').value || null,
           contato: $('#fHotelContato').value.trim(),
-          endereco: $('#fHotelEndereco').value.trim()
+          whatsapp: $('#fHotelContato').value.trim(),
+          endereco: $('#fHotelEndereco').value.trim(),
+          numero_reserva: $('#fHotelReserva').value.trim() || null
         };
         if(!payload.nome) return showToast('Informe o hotel.');
         const {data,error} = await state.supabase.from('hotels').insert(payload).select().single();
         if(error) return showToast(error.message);
         setEntityMeta('hotels', data.id, {reserva_numero: $('#fHotelReserva').value.trim()});
-        const selected = [...$('#fHotelGuests').selectedOptions].map(o=>({hotel_id:data.id, member_id:o.value}));
-        if(selected.length) await state.supabase.from('hotel_guests').insert(selected);
+        const selectedIds = [...$('#fHotelGuests').selectedOptions].map(o=>o.value);
+        if(selectedIds.length){
+          const selected = selectedIds.map(id=>({hotel_id:data.id, member_id:id}));
+          const ins = await state.supabase.from('hotel_guests').insert(selected);
+          if(ins.error) showToast(ins.error.message);
+        }
         await refreshAll(); renderApp();
       };
       btns.append(btnAdd);
@@ -770,16 +770,20 @@
       if(!state.cache.hotels.length) list.innerHTML = '<div class="empty">Nenhuma hospedagem cadastrada.</div>';
       state.cache.hotels.forEach(h=>{
         const guests = hotelGuestMembers(h.id);
-        const familiesHere = hotelFamilies(h.id);
+        let familiesHere = hotelFamilies(h.id);
+        if(!familiesHere.length && h.family_id){
+          familiesHere = state.cache.families.filter(f=>f.id===h.family_id);
+        }
         const meta = getEntityMeta('hotels', h.id);
+        const reserva = h.numero_reserva || meta.reserva_numero || '';
         const item = el('div','item');
         item.innerHTML = `
           <div class="item-head">
             <div>
               <b>${escapeHtml(h.nome)}</b>
               <div class="fine">${formatDate(h.checkin)} até ${formatDate(h.checkout)}</div>
-              ${meta.reserva_numero ? `<div class="fine">Reserva: ${escapeHtml(meta.reserva_numero)}</div>`:''}
-              <div class="inline-actions">${renderWhatsApp(h.contato, 'WhatsApp')} ${renderMaps(h.endereco)}</div>
+              ${reserva ? `<div class="fine">Reserva: ${escapeHtml(reserva)}</div>`:''}
+              <div class="inline-actions">${renderWhatsApp(h.whatsapp || h.contato, 'WhatsApp')} ${renderMaps(h.endereco)}</div>
               <div class="fine">${escapeHtml(h.endereco || '')}</div>
               <div class="fine"><b>Famílias hospedadas aqui:</b> ${familiesHere.map(f=>escapeHtml(f.name)).join(', ') || 'Nenhuma família vinculada'}</div>
               <div class="inline-actions">${guests.map(g=>`<span class="pill">${escapeHtml(g.name)}</span>`).join('') || '<span class="fine">Sem hóspedes vinculados</span>'}</div>
@@ -845,7 +849,7 @@
     }
 
     function renderVoos(){
-      const card = baseSection('Voos', 'Trechos públicos, mas passagem e CPF só aparecem para a própria família com PIN.');
+      const card = baseSection('Voos', 'Trechos públicos. Clique no passageiro para abrir passagem + documento e fazer upload do bilhete.');
       const membersOptions = state.cache.members.map(m=>`<option value="${m.id}">${escapeHtml(m.name)}</option>`).join('');
       const form = el('div','form-grid');
       form.innerHTML = `
@@ -867,17 +871,22 @@
           data: $('#fFlightData').value || null,
           horario: $('#fFlightHorario').value.trim(),
           cia: $('#fFlightCia').value.trim(),
-          numero_voo: $('#fFlightNumero').value.trim()
+          numero_voo: $('#fFlightNumero').value.trim(),
+          localizador: $('#fFlightReserva').value.trim() || null,
+          numero_reserva: $('#fFlightReserva').value.trim() || null
         };
         if(!payload.origem || !payload.destino) return showToast('Preencha origem e destino.');
         const {data,error} = await state.supabase.from('flights').insert(payload).select().single();
         if(error) return showToast(error.message);
         const passengerIds = [...$('#fFlightPassengers').selectedOptions].map(o=>o.value);
-        const passengers = passengerIds.map(id=>({flight_id:data.id, member_id:id}));
-        if(passengers.length) await state.supabase.from('flight_passengers').insert(passengers);
-        const reserva = $('#fFlightReserva').value.trim();
-        if(passengerIds.length && reserva){
-          await state.supabase.from('flight_tickets').insert(passengerIds.map(id=>({flight_id:data.id, member_id:id, ticket_url:'', localizador:reserva})));
+        if(passengerIds.length){
+          const passengers = passengerIds.map(id=>({flight_id:data.id, member_id:id}));
+          const paxRes = await state.supabase.from('flight_passengers').insert(passengers);
+          if(paxRes.error) showToast(paxRes.error.message);
+          const reserva = $('#fFlightReserva').value.trim();
+          for(const id of passengerIds){
+            await state.supabase.from('flight_tickets').upsert({flight_id:data.id, member_id:id, ticket_url:'', localizador:reserva || null},{onConflict:'flight_id,member_id'});
+          }
         }
         await refreshAll(); renderApp();
       };
@@ -886,14 +895,16 @@
       if(!state.cache.flights.length) list.innerHTML = '<div class="empty">Nenhum voo cadastrado.</div>';
       state.cache.flights.forEach(f=>{
         const pax = flightPassengers(f.id);
+        const reserva = f.localizador || f.numero_reserva || (state.cache.flightTickets.find(t=>t.flight_id===f.id && t.localizador)?.localizador) || 'a definir';
         const item = el('div','item');
         item.innerHTML = `
           <div class="item-head">
             <div>
               <b>${escapeHtml(f.origem||'-')} → ${escapeHtml(f.destino||'-')}</b>
               <div class="fine">${formatDate(f.data)} ${escapeHtml(f.horario||'')} ${escapeHtml(f.cia||'')} ${escapeHtml(f.numero_voo||'')}</div>
-              <div class="fine">Reserva: ${escapeHtml((state.cache.flightTickets.find(t=>t.flight_id===f.id && t.localizador)?.localizador) || 'a definir')}</div>
-              <div class="inline-actions">${pax.map(p=>`<button class="btn secondary small pax-btn" data-member="${p.id}">${escapeHtml(p.name)}</button>`).join('') || '<span class="fine">Sem passageiros vinculados.</span>'}</div>
+              <div class="fine">Reserva: ${escapeHtml(reserva)}</div>
+              <div class="fine" style="margin:8px 0 6px">Clique no passageiro para abrir passagem + documento:</div>
+              <div class="inline-actions">${pax.map(p=>`<button class="btn secondary small pax-btn" data-member="${p.id}">${escapeHtml(p.name)} • Passagem + CPF</button>`).join('') || '<span class="fine">Sem passageiros vinculados.</span>'}</div>
             </div>
           </div>`;
         item.querySelectorAll('.pax-btn').forEach(b=> b.onclick = ()=> openFlightMember(f.id, b.dataset.member));
@@ -936,7 +947,7 @@
       $('#btnSaveFlightTicket').onclick = ()=> saveFlightTicket(flightId, memberId, $('#uploadFlightTicket').files[0], ticket?.localizador || '');
     }
 
-    async function saveFlightTicket(flightId, memberId, file, localizador=''){
+    async async function saveFlightTicket(flightId, memberId, file, localizador=''){
       const existing = ticketForFlight(flightId, memberId);
       let url = existing?.ticket_url || '';
       if(file){
@@ -944,18 +955,16 @@
         if(!url) return;
       }
       if(!url && !localizador) return showToast('Envie a passagem ou informe o localizador.');
-      if(existing){
-        const {error} = await state.supabase.from('flight_tickets').update({ticket_url:url, localizador}).eq('id', existing.id);
-        if(error) return showToast(error.message);
-      } else {
-        const {error} = await state.supabase.from('flight_tickets').insert({flight_id:flightId, member_id:memberId, ticket_url:url, localizador});
-        if(error) return showToast(error.message);
-      }
+      const payload = {flight_id:flightId, member_id:memberId, ticket_url:url || '', localizador:localizador || null};
+      let res;
+      if(existing) res = await state.supabase.from('flight_tickets').update({ticket_url:payload.ticket_url, localizador:payload.localizador}).eq('id', existing.id);
+      else res = await state.supabase.from('flight_tickets').insert(payload);
+      if(res.error) return showToast(res.error.message);
       await refreshAll(); renderApp(); closeModal(); showToast('Passagem salva.');
     }
 
     function renderParques(){
-      const card = baseSection('Parques', 'Ingresso do parque + CPF por membro.');
+      const card = baseSection('Parques', 'Clique no participante para abrir ingresso + documento e salvar o ticket individual.');
       const membersOptions = state.cache.members.map(m=>`<option value="${m.id}">${escapeHtml(m.name)}</option>`).join('');
       const form = el('div','form-grid');
       form.innerHTML = `
@@ -970,7 +979,10 @@
         const {data,error} = await state.supabase.from('parks').insert(payload).select().single();
         if(error) return showToast(error.message);
         const selected = [...$('#fParkMembers').selectedOptions].map(o=>({park_id:data.id, member_id:o.value, ticket_url:''}));
-        if(selected.length) await state.supabase.from('park_tickets').insert(selected);
+        if(selected.length){
+          const ins = await state.supabase.from('park_tickets').insert(selected);
+          if(ins.error) showToast(ins.error.message);
+        }
         await refreshAll(); renderApp();
       };
       card.append(form, btn, el('div','divider'));
@@ -984,7 +996,8 @@
             <div>
               <b>${escapeHtml(p.nome)}</b>
               <div class="fine">${formatDate(p.data)}</div>
-              <div class="inline-actions">${participants.map(m=>`<button class="btn secondary small park-btn" data-member="${m.id}">${escapeHtml(m.name)}</button>`).join('') || '<span class="fine">Sem participantes.</span>'}</div>
+              <div class="fine" style="margin:8px 0 6px">Clique no participante para abrir ingresso + CPF:</div>
+              <div class="inline-actions">${participants.map(m=>`<button class="btn secondary small park-btn" data-member="${m.id}">${escapeHtml(m.name)} • Ingresso + CPF</button>`).join('') || '<span class="fine">Sem participantes.</span>'}</div>
             </div>
           </div>`;
         item.querySelectorAll('.park-btn').forEach(b=> b.onclick = ()=> openParkMember(p.id, b.dataset.member));
@@ -1024,17 +1037,20 @@
       $('#btnSaveParkTicket').onclick = ()=> saveParkTicket(parkId, memberId, $('#uploadParkTicket').files[0]);
     }
 
-    async function saveParkTicket(parkId, memberId, file){
+    async async function saveParkTicket(parkId, memberId, file){
       if(!file) return showToast('Selecione um arquivo.');
       const url = await uploadFile('tickets', file, `${state.currentTrip.id}/parks/${parkId}/${memberId}_${Date.now()}_${file.name}`);
       if(!url) return;
-      const {error} = await state.supabase.from('park_tickets').update({ticket_url:url}).eq('park_id', parkId).eq('member_id', memberId);
-      if(error) return showToast(error.message);
+      const existing = ticketForPark(parkId, memberId);
+      let res;
+      if(existing) res = await state.supabase.from('park_tickets').update({ticket_url:url}).eq('park_id', parkId).eq('member_id', memberId);
+      else res = await state.supabase.from('park_tickets').insert({park_id:parkId, member_id:memberId, ticket_url:url});
+      if(res.error) return showToast(res.error.message);
       await refreshAll(); renderApp(); closeModal(); showToast('Ingresso salvo.');
     }
 
     function renderAtracoes(){
-      const card = baseSection('Atrações', 'Ingressos extras por participante da família.');
+      const card = baseSection('Atrações', 'Clique no participante para abrir ingresso da atração + documento pessoal.');
       const membersOptions = state.cache.members.map(m=>`<option value="${m.id}">${escapeHtml(m.name)}</option>`).join('');
       const form = el('div','form-grid');
       form.innerHTML = `
@@ -1049,7 +1065,10 @@
         const {data,error} = await state.supabase.from('attractions').insert(payload).select().single();
         if(error) return showToast(error.message);
         const selected = [...$('#fAttrMembers').selectedOptions].map(o=>({attraction_id:data.id, member_id:o.value, ticket_url:''}));
-        if(selected.length) await state.supabase.from('attraction_tickets').insert(selected);
+        if(selected.length){
+          const ins = await state.supabase.from('attraction_tickets').insert(selected);
+          if(ins.error) showToast(ins.error.message);
+        }
         await refreshAll(); renderApp();
       };
       card.append(form, btn, el('div','divider'));
@@ -1063,7 +1082,8 @@
             <div>
               <b>${escapeHtml(a.nome)}</b>
               <div class="fine">${formatDate(a.data_hora)}</div>
-              <div class="inline-actions">${participants.map(m=>`<button class="btn secondary small attr-btn" data-member="${m.id}">${escapeHtml(m.name)}</button>`).join('') || '<span class="fine">Sem participantes.</span>'}</div>
+              <div class="fine" style="margin:8px 0 6px">Clique no participante para abrir ingresso + CPF:</div>
+              <div class="inline-actions">${participants.map(m=>`<button class="btn secondary small attr-btn" data-member="${m.id}">${escapeHtml(m.name)} • Ingresso + CPF</button>`).join('') || '<span class="fine">Sem participantes.</span>'}</div>
             </div>
           </div>`;
         item.querySelectorAll('.attr-btn').forEach(b=> b.onclick = ()=> openAttractionMember(a.id, b.dataset.member));
@@ -1101,17 +1121,45 @@
       $('#btnSaveAttrTicket').onclick = ()=> saveAttractionTicket(attractionId, memberId, $('#uploadAttrTicket').files[0]);
     }
 
-    async function saveAttractionTicket(attractionId, memberId, file){
+    async async function saveAttractionTicket(attractionId, memberId, file){
       if(!file) return showToast('Selecione um arquivo.');
       const url = await uploadFile('tickets', file, `${state.currentTrip.id}/attractions/${attractionId}/${memberId}_${Date.now()}_${file.name}`);
       if(!url) return;
-      const {error} = await state.supabase.from('attraction_tickets').update({ticket_url:url}).eq('attraction_id', attractionId).eq('member_id', memberId);
-      if(error) return showToast(error.message);
+      const existing = ticketForAttraction(attractionId, memberId);
+      let res;
+      if(existing) res = await state.supabase.from('attraction_tickets').update({ticket_url:url}).eq('attraction_id', attractionId).eq('member_id', memberId);
+      else res = await state.supabase.from('attraction_tickets').insert({attraction_id:attractionId, member_id:memberId, ticket_url:url});
+      if(res.error) return showToast(res.error.message);
       await refreshAll(); renderApp(); closeModal(); showToast('Ingresso salvo.');
     }
 
+
+    function getDerivedAlarms(){
+      const out = [];
+      state.cache.transfers.forEach(t=>{
+        if(t.data_hora) out.push({tipo:'transporte', titulo:`Transporte: ${t.origem} → ${t.destino}`, descricao:t.obs || t.responsavel || '', data_hora:t.data_hora, source_id:t.id});
+      });
+      state.cache.hotels.forEach(h=>{
+        if(h.checkin) out.push({tipo:'hospedagem', titulo:`Check-in: ${h.nome}`, descricao:h.endereco || '', data_hora:`${h.checkin}T14:00`, source_id:h.id});
+        if(h.checkout) out.push({tipo:'hospedagem', titulo:`Check-out: ${h.nome}`, descricao:h.endereco || '', data_hora:`${h.checkout}T11:00`, source_id:h.id+'-out'});
+      });
+      state.cache.flights.forEach(f=>{
+        if(f.data){
+          const hh = (f.horario && /^\d{1,2}:\d{2}$/.test(f.horario)) ? f.horario : '08:00';
+          out.push({tipo:'voo', titulo:`Voo: ${f.origem||''} → ${f.destino||''}`, descricao:`${f.cia||''} ${f.numero_voo||''}`.trim(), data_hora:`${f.data}T${hh}`, source_id:f.id});
+        }
+      });
+      state.cache.parks.forEach(p=>{
+        if(p.data) out.push({tipo:'parque', titulo:`Parque: ${p.nome}`, descricao:'Ingresso e documento', data_hora:`${p.data}T09:00`, source_id:p.id});
+      });
+      state.cache.attractions.forEach(a=>{
+        if(a.data_hora) out.push({tipo:'atração', titulo:`Atração: ${a.nome}`, descricao:'Ingresso da atração', data_hora:a.data_hora, source_id:a.id});
+      });
+      return out.sort((a,b)=> new Date(a.data_hora) - new Date(b.data_hora));
+    }
+
     function renderAlarmes(){
-      const card = baseSection('Alarmes', 'Lembretes públicos. Este HTML exporta .ics; push real precisa de service worker e backend.');
+      const card = baseSection('Alarmes', 'Lembretes manuais e lembretes automáticos do que já foi salvo em transporte, hospedagem, voos, parques e atrações.');
       const form = el('div','form-grid');
       form.innerHTML = `
         <div class="field"><label>Título</label><input id="fAlarmTitle" placeholder="Saída para o parque"></div>
@@ -1127,14 +1175,19 @@
         await refreshAll(); renderApp();
       };
       card.append(form, btn, el('div','divider'));
+      const allAlarms = [
+        ...getDerivedAlarms().map(x=>({...x, automatico:true, key:`auto-${x.tipo}-${x.source_id}`})),
+        ...state.cache.alarms.map(x=>({...x, automatico:false, key:`manual-${x.id}`}))
+      ].sort((a,b)=> new Date(a.data_hora) - new Date(b.data_hora));
+
       const list = el('div','list');
-      if(!state.cache.alarms.length) list.innerHTML = '<div class="empty">Nenhum alarme cadastrado.</div>';
-      state.cache.alarms.forEach(a=>{
+      if(!allAlarms.length) list.innerHTML = '<div class="empty">Nenhum alarme cadastrado.</div>';
+      allAlarms.forEach(a=>{
         const item = el('div','item');
         item.innerHTML = `
           <div class="item-head">
             <div>
-              <b>${escapeHtml(a.titulo)}</b>
+              <b>${escapeHtml(a.titulo)}</b> ${a.automatico ? '<span class="pill">Automático</span>' : '<span class="pill">Manual</span>'}
               <div class="fine">${formatDate(a.data_hora)}</div>
               <div class="fine">${escapeHtml(a.descricao || '')}</div>
             </div>
@@ -1171,7 +1224,7 @@ END:VCALENDAR`;
     }
 
     function renderRateios(){
-      const card = baseSection('Rateios', 'Gastos comuns com cálculo automático de saldo por membro.');
+      const card = baseSection('Rateios', 'Gastos comuns com cálculo automático. Saldo positivo = tem a receber. Saldo negativo = deve pagar.');
       const memberOptions = state.cache.members.map(m=>`<option value="${m.id}">${escapeHtml(m.name)}</option>`).join('');
       const form = el('div','form-grid');
       form.innerHTML = `
@@ -1188,7 +1241,6 @@ END:VCALENDAR`;
         const val = Number($('#fExpenseValue').value || 0);
         const splitIds = checkedValues('expenseSplit');
         if(!$('#fExpenseDesc').value.trim() || !val || !$('#fExpensePayer').value || !splitIds.length) return showToast('Preencha descrição, valor, pagador e participantes.');
-
         const payload = {
           trip_id: state.currentTrip.id,
           descricao: $('#fExpenseDesc').value.trim(),
@@ -1197,19 +1249,14 @@ END:VCALENDAR`;
           categoria: $('#fExpenseCategory').value.trim(),
           pago_por: $('#fExpensePayer').value
         };
-
-        const fileInput = $('#fExpenseProof');
-        const file = fileInput && fileInput.files ? fileInput.files[0] : null;
+        const file = $('#fExpenseProof').files?.[0];
         if(file){
           const uploadedUrl = await uploadFile('documentos', file, `${state.currentTrip.id}/expenses/${Date.now()}_${file.name}`);
-          if(!uploadedUrl) return showToast('Não foi possível enviar o comprovante. Você pode salvar o gasto sem comprovante ou tentar novamente.');
+          if(!uploadedUrl) return;
           payload.comprovante_url = uploadedUrl;
         }
-
         const expenseInsert = await state.supabase.from('expenses').insert(payload).select('id').single();
-        if(expenseInsert.error || !expenseInsert.data?.id){
-          return showToast(expenseInsert.error?.message || 'Não foi possível salvar o gasto.');
-        }
+        if(expenseInsert.error || !expenseInsert.data?.id) return showToast(expenseInsert.error?.message || 'Não foi possível salvar o gasto.');
 
         const total = Math.round(val * 100);
         const base = Math.floor(total / splitIds.length);
@@ -1217,43 +1264,30 @@ END:VCALENDAR`;
         const splits = splitIds.map(id=>{
           const extra = remainder > 0 ? 1 : 0;
           if(remainder > 0) remainder--;
-          return {
-            expense_id: expenseInsert.data.id,
-            member_id: id,
-            valor_dividido: Number(((base + extra) / 100).toFixed(2))
-          };
+          return {expense_id: expenseInsert.data.id, member_id: id, valor_dividido: Number(((base + extra) / 100).toFixed(2))};
         });
-
         const splitInsert = await state.supabase.from('expense_splits').insert(splits);
         if(splitInsert.error){
           await state.supabase.from('expenses').delete().eq('id', expenseInsert.data.id);
           return showToast(splitInsert.error.message || 'Não foi possível salvar a divisão do gasto.');
         }
-
-        $('#fExpenseDesc').value = '';
-        $('#fExpenseValue').value = '';
-        $('#fExpenseDate').value = '';
-        $('#fExpensePayer').value = '';
-        $('#fExpenseCategory').value = '';
-        if(fileInput) fileInput.value = '';
+        $('#fExpenseDesc').value=''; $('#fExpenseValue').value=''; $('#fExpenseDate').value=''; $('#fExpensePayer').value=''; $('#fExpenseCategory').value=''; $('#fExpenseProof').value='';
         document.querySelectorAll('input[name="expenseSplit"]').forEach(i=> i.checked = false);
-
-        await refreshAll();
-        renderApp();
-        showToast('Gasto salvo com sucesso.');
+        await refreshAll(); renderApp(); showToast('Gasto salvo com sucesso.');
       };
       card.append(form, btn, el('div','divider'));
 
       const balances = {};
-      state.cache.members.forEach(m=> balances[m.id] = {name:m.name, paid:0, owed:0, balance:0, pix:m.pix_key || ''});
+      state.cache.members.forEach(m=> balances[m.id] = {name:m.name, paid:0, share:0, balance:0, pix:m.pix_key || ''});
       state.cache.expenses.forEach(e=> { if(balances[e.pago_por]) balances[e.pago_por].paid += Number(e.valor||0); });
-      state.cache.expenseSplits.forEach(s=> { if(balances[s.member_id]) balances[s.member_id].owed += Number(s.valor_dividido||0); });
-      Object.values(balances).forEach(b=> b.balance = b.paid - b.owed);
+      state.cache.expenseSplits.forEach(s=> { if(balances[s.member_id]) balances[s.member_id].share += Number(s.valor_dividido||0); });
+      Object.values(balances).forEach(b=> b.balance = Number((b.paid - b.share).toFixed(2)));
 
       const summary = el('div','grid grid-3');
       Object.values(balances).forEach(b=>{
+        const status = b.balance > 0 ? `Tem a receber ${formatMoney(b.balance)}` : b.balance < 0 ? `Deve pagar ${formatMoney(Math.abs(b.balance))}` : 'Quitado';
         const it = el('div','stat');
-        it.innerHTML = `<div class="fine">${escapeHtml(b.name)}</div><div class="kpi" style="font-size:22px">${formatMoney(b.balance)}</div><div class="fine">Pagou ${formatMoney(b.paid)} • Deve ${formatMoney(b.owed)}</div>`;
+        it.innerHTML = `<div class="fine">${escapeHtml(b.name)}</div><div class="kpi" style="font-size:22px">${formatMoney(b.balance)}</div><div class="fine">Pagou ${formatMoney(b.paid)} • Participa ${formatMoney(b.share)}</div><div class="fine"><b>${status}</b></div>`;
         summary.appendChild(it);
       });
       card.append(summary, el('div','divider'));
