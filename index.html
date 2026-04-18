@@ -6,11 +6,12 @@
 <title>15 anos da Isa - Beto Carrero 2026</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
-:root {--azul:#2563EB;--branco:#FFFFFF;--cinza:#F3F4F6;--cinza-escuro:#374151;--vermelho:#dc2626}
+:root {--azul:#2563EB;--branco:#FFFFFF;--cinza:#F3F4F6;--cinza-escuro:#374151;--vermelho:#dc2626;--verde:#16a34a}
 *{margin:0;padding:0;box-sizing:border-box;font-family:system-ui,-apple-system,sans-serif}
 body{background:var(--cinza);color:var(--cinza-escuro)}
 .header{background:var(--azul);color:var(--branco);padding:16px;display:flex;justify-content:space-between;align-items:center;position:sticky;top:0;z-index:100}
 .btn-sos{background:var(--vermelho);color:#fff;border:none;padding:8px 16px;border-radius:8px;font-weight:700;cursor:pointer}
+.btn-sair{background:transparent;color:#fff;border:1px solid #fff;padding:6px 12px;border-radius:8px;cursor:pointer;font-size:14px}
 .tabs{display:flex;overflow-x:auto;background:var(--branco);border-bottom:2px solid var(--cinza);position:sticky;top:60px;z-index:99}
 .tab{padding:12px 16px;border:none;background:transparent;cursor:pointer;white-space:nowrap;font-weight:600;color:var(--cinza-escuro)}
 .tab.active{color:var(--azul);border-bottom:3px solid var(--azul)}
@@ -18,6 +19,7 @@ body{background:var(--cinza);color:var(--cinza-escuro)}
 .card{background:var(--branco);border-radius:12px;padding:16px;margin-bottom:12px;box-shadow:0 1px 3px rgba(0,0,0,0.1)}
 .btn{background:var(--azul);color:var(--branco);border:none;padding:12px 20px;border-radius:8px;font-weight:600;cursor:pointer;width:100%;margin-top:8px}
 .btn-sec{background:var(--cinza);color:var(--cinza-escuro)}
+.btn-verde{background:var(--verde);color:var(--branco)}
 .modal{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:1000;align-items:center;justify-content:center}
 .modal.show{display:flex}
 .modal-content{background:var(--branco);border-radius:16px;padding:24px;max-width:500px;width:90%;max-height:80vh;overflow-y:auto}
@@ -26,18 +28,27 @@ body{background:var(--cinza);color:var(--cinza-escuro)}
 .checkbox{display:flex;align-items:center;margin:8px 0}
 .checkbox input{margin-right:8px;width:20px;height:20px}
 .loading{text-align:center;padding:40px;color:var(--cinza-escuro)}
+.file-list{margin-top:8px;font-size:14px}
+.file-item{background:var(--cinza);padding:8px;border-radius:6px;margin:4px 0;display:flex;justify-content:space-between;align-items:center}
+.file-item a{color:var(--azul);text-decoration:none;font-weight:600}
+.label{font-weight:600;margin-top:12px;display:block;font-size:14px}
+.subtab{display:flex;gap:8px;margin-bottom:12px}
+.subtab button{flex:1;padding:10px;border:none;border-radius:8px;background:var(--cinza);cursor:pointer;font-weight:600}
+.subtab button.active{background:var(--azul);color:var(--branco)}
 </style>
 </head>
 <body>
 <div class="header">
-  <h1>15 anos da Isa</h1>
-  <button class="btn-sos" onclick="abrirSOS()">🚨 SOS</button>
+  <div><h1>15 anos da Isa</h1></div>
+  <div style="display:flex;gap:8px">
+    <button class="btn-sair" onclick="sair()">Sair</button>
+    <button class="btn-sos" onclick="abrirSOS()">🚨 SOS</button>
+  </div>
 </div>
 <div id="app"><div class="loading">Carregando...</div></div>
 
 <div id="modalSOS" class="modal"><div class="modal-content"><h2 style="color:#dc2626;margin-bottom:16px">🚨 EMERGÊNCIA</h2><div id="dadosSOS"></div><button class="btn" onclick="fecharModal('modalSOS')">Fechar</button></div></div>
 <div id="modalParticipar" class="modal"><div class="modal-content"><h3 id="tituloParticipar"></h3><div id="listaMembros"></div><button class="btn" onclick="salvarParticipacao()">Salvar Participação</button><button class="btn btn-sec" onclick="fecharModal('modalParticipar')">Cancelar</button></div></div>
-<div id="modalNovaAtracao" class="modal"><div class="modal-content"><h3>Nova Atração</h3><input id="atrNome" class="input" placeholder="Nome: Ex. Hot Wheels"><input id="atrData" type="date" class="input"><input id="atrHora" type="time" class="input" placeholder="Horário"><input id="atrLocal" class="input" placeholder="Local: Arena Principal"><button class="btn" onclick="salvarNovaAtracao()">Salvar</button><button class="btn btn-sec" onclick="fecharModal('modalNovaAtracao')">Cancelar</button></div></div>
 
 <script>
 const SUPABASE_URL = 'https://cfvipeilwbeppqxvqpid.supabase.co';
@@ -64,14 +75,14 @@ async function init(){
 
 async function verificarSessaoFamilia(){
   const sessao = localStorage.getItem('familia_sessao');
-  if(sessao){ 
-    const dados = JSON.parse(sessao); 
-    if(dados.expira > Date.now()){ 
-      familiaAtual = dados.familia; 
-      sessaoValida = true; 
-    } else { 
-      localStorage.removeItem('familia_sessao'); 
-    } 
+  if(sessao){
+    const dados = JSON.parse(sessao);
+    if(dados.expira > Date.now()){
+      familiaAtual = dados.familia;
+      sessaoValida = true;
+    } else {
+      localStorage.removeItem('familia_sessao');
+    }
   }
 }
 
@@ -80,41 +91,77 @@ function mostrarLogin(){
     <div class="content">
       <div class="card">
         <h2>Entrar na Viagem</h2>
-        <input type="text" id="username" class="input" placeholder="Nome de usuário: morales" value="morales">
-        <input type="password" id="password" class="input" placeholder="Senha: 1234" value="1234">
+        <input type="text" id="username" class="input" placeholder="Nome de usuário">
+        <input type="password" id="password" class="input" placeholder="Senha">
         <button class="btn" onclick="fazerLogin()">Entrar</button>
-        <p style="margin-top:12px;font-size:14px;color:#666">Use: morales / 1234</p>
+        <button class="btn btn-sec" onclick="mostrarCadastro()">Criar Conta</button>
       </div>
     </div>
   `;
 }
 
+function mostrarCadastro(){
+  document.getElementById('app').innerHTML = `
+    <div class="content">
+      <div class="card">
+        <h2>Criar Conta</h2>
+        <input type="text" id="cadUsername" class="input" placeholder="Escolha um nome de usuário">
+        <input type="text" id="cadNome" class="input" placeholder="Seu nome completo">
+        <input type="password" id="cadPassword" class="input" placeholder="Crie uma senha">
+        <button class="btn" onclick="fazerCadastro()">Cadastrar</button>
+        <button class="btn btn-sec" onclick="mostrarLogin()">Já tenho conta</button>
+      </div>
+    </div>
+  `;
+}
+
+async function fazerCadastro(){
+  const username = document.getElementById('cadUsername').value.trim().toLowerCase();
+  const nome = document.getElementById('cadNome').value.trim();
+  const password = document.getElementById('cadPassword').value;
+
+  if(!username ||!password ||!nome) return alert('Preenche todos os campos');
+  if(username.length < 3) return alert('Usuário precisa ter 3+ caracteres');
+  if(password.length < 4) return alert('Senha precisa ter 4+ caracteres');
+
+  const {data, error} = await supabaseClient.from('users').insert({
+    username, password, nome_completo: nome
+  }).select().single();
+
+  if(error){
+    if(error.message.includes('duplicate')) return alert('Esse nome de usuário já existe');
+    return alert('Erro ao cadastrar: ' + error.message);
+  }
+
+  alert('Conta criada! Fazendo login...');
+  usuario = data;
+  localStorage.setItem('usuario_logado', JSON.stringify(data));
+  await carregarApp();
+}
+
 async function fazerLogin(){
   const username = document.getElementById('username').value.trim().toLowerCase();
   const password = document.getElementById('password').value;
-  
-  console.log('Tentando login:', username);
-  
+
+  if(!username ||!password) return alert('Preenche usuário e senha');
+
   const {data: users, error} = await supabaseClient
- .from('users')
- .select('*')
- .eq('username', username)
- .eq('password', password);
-    
-  console.log('Resultado:', users, 'Erro:', error);
-  
-  if(error) {
-    alert('Erro no banco: ' + error.message);
-    return;
-  }
-  if(!users || users.length === 0) {
-    alert('Usuário ou senha incorretos');
-    return;
-  }
-  
+.from('users')
+.select('*')
+.eq('username', username)
+.eq('password', password);
+
+  if(error) return alert('Erro no banco: ' + error.message);
+  if(!users || users.length === 0) return alert('Usuário ou senha incorretos');
+
   usuario = users[0];
   localStorage.setItem('usuario_logado', JSON.stringify(users[0]));
   await carregarApp();
+}
+
+function sair(){
+  localStorage.clear();
+  location.reload();
 }
 
 async function carregarApp(){
@@ -122,15 +169,15 @@ async function carregarApp(){
   try {
     const {data: viagens, error} = await supabaseClient.from('trips').select('*').is('deleted_at', null).limit(1);
     if(error) throw error;
-    if(!viagens || viagens.length === 0){ 
-      mostrarCriarViagem(); 
-      return; 
+    if(!viagens || viagens.length === 0){
+      mostrarCriarViagem();
+      return;
     }
     viagemAtual = viagens[0];
-    if(!sessaoValida){ 
-      await mostrarSelecaoFamilia(); 
-    } else { 
-      mostrarAbas(); 
+    if(!sessaoValida){
+      await mostrarSelecaoFamilia();
+    } else {
+      mostrarAbas();
     }
   } catch(e) {
     console.error('Erro carregarApp:', e);
@@ -236,31 +283,90 @@ async function aba(nome, el){
   if(el) el.classList.add('active');
   document.getElementById('conteudo').innerHTML = '<div class="loading">Carregando...</div>';
   if(nome === 'parques') await carregarParques();
-  else if(nome === 'voos') document.getElementById('conteudo').innerHTML = '<div class="card"><h2>✈️ Voos</h2><p>Em breve. Use Parques como exemplo.</p></div>';
-  else if(nome === 'hospedagem') document.getElementById('conteudo').innerHTML = '<div class="card"><h2>🏨 Hospedagem</h2><p>Em breve. Use Parques como exemplo.</p></div>';
-  else if(nome === 'transporte') document.getElementById('conteudo').innerHTML = '<div class="card"><h2>🚐 Transporte</h2><p>Em breve. Use Parques como exemplo.</p></div>';
+  else if(nome === 'voos') await carregarVoos();
+  else if(nome === 'hospedagem') await carregarHoteis();
+  else if(nome === 'transporte') await carregarTransportes();
   else if(nome === 'alarmes') await carregarAlarmes();
-  else if(nome === 'docs') document.getElementById('conteudo').innerHTML = '<div class="card"><h2>📄 Documentos</h2><p>Cadastre CPF/RG dos membros aqui.</p></div>';
+  else if(nome === 'docs') await carregarDocs();
 }
 
+async function uploadArquivo(inputId, categoria, referenciaId){
+  const fileInput = document.getElementById(inputId);
+  const file = fileInput.files[0];
+  if(!file) return null;
+
+  const fileName = `${Date.now()}_${file.name}`;
+  const {data, error} = await supabaseClient.storage
+.from('documentos')
+.upload(fileName, file);
+
+  if(error) {
+    alert('Erro ao enviar arquivo: ' + error.message);
+    return null;
+  }
+
+  const {data: {publicUrl}} = supabaseClient.storage.from('documentos').getPublicUrl(fileName);
+
+  await supabaseClient.from('documents').insert({
+    trip_id: viagemAtual.id,
+    family_id: familiaAtual.id,
+    categoria,
+    referencia_id: referenciaId,
+    nome_arquivo: file.name,
+    url: publicUrl,
+    created_by: usuario.id
+  });
+
+  return publicUrl;
+}
+
+async function buscarDocs(categoria, referenciaId){
+  const {data} = await supabaseClient.from('documents')
+.select('*')
+.eq('categoria', categoria)
+.eq('referencia_id', referenciaId);
+  return data || [];
+}
+
+// PARQUES
 async function carregarParques(){
   const {data: atracoes} = await supabaseClient.from('public_attraction_summary').select('*').eq('trip_id', viagemAtual.id);
   const agrupado = {};
-  atracoes?.forEach(a=>{ 
-    if(!agrupado[a.attraction_id]) agrupado[a.attraction_id] = {id: a.attraction_id, nome: a.nome, data: a.data, horario: a.horario, local: a.local, familias: []}; 
-    if(a.family_name) agrupado[a.attraction_id].familias.push({nome: a.family_name, qtd: a.quantidade}); 
+  atracoes?.forEach(a=>{
+    if(!agrupado[a.attraction_id]) agrupado[a.attraction_id] = {id: a.attraction_id, nome: a.nome, data: a.data, horario: a.horario, local: a.local, familias: []};
+    if(a.family_name) agrupado[a.attraction_id].familias.push({nome: a.family_name, qtd: a.quantidade});
   });
-  let html = '<h2>🎢 Parques e Atrações</h2><button class="btn" onclick="novaAtracao()">+ Nova Atração</button>';
+  let html = '<h2>🎢 Parques e Atrações</h2><button class="btn" onclick="mostrarFormAtracao()">+ Nova Atração</button>';
   if(Object.keys(agrupado).length === 0) html += '<div class="card"><p>Nenhuma atração cadastrada ainda.</p></div>';
-  Object.values(agrupado).forEach(a=>{ 
-    const total = a.familias.reduce((s,f)=>s+f.qtd, 0); 
-    html += `<div class="card"><h3>${a.nome}</h3><p>⏰ ${a.data || ''} às ${a.horario || '--:--'} - ${a.local || 'Local a definir'}</p><div class="public-counter">${a.familias.map(f=>'👨‍👩‍👧‍👦 '+f.nome+': '+f.qtd+' pessoas').join('<br>')}<br><strong>Total: ${total} ingressos</strong></div><button class="btn" onclick="participarAtracao('${a.id}','${a.nome}')">Participar desta atração</button></div>`; 
-  });
+
+  for(const a of Object.values(agrupado)){
+    const total = a.familias.reduce((s,f)=>s+f.qtd, 0);
+    const docs = await buscarDocs('atracao', a.id);
+    html += `<div class="card">
+      <h3>${a.nome}</h3>
+      <p>⏰ ${a.data || ''} às ${a.horario || '--:--'} - ${a.local || 'Local a definir'}</p>
+      <div class="public-counter">${a.familias.map(f=>'👨‍👩‍👧‍👦 '+f.nome+': '+f.qtd+' pessoas').join('<br>')}<br><strong>Total: ${total} ingressos</strong></div>
+      ${docs.length > 0? '<div class="file-list">' + docs.map(d=>`<div class="file-item"><a href="${d.url}" target="_blank">📄 ${d.nome_arquivo}</a></div>`).join('') + '</div>' : ''}
+      <button class="btn" onclick="participarAtracao('${a.id}','${a.nome}')">Participar desta atração</button>
+    </div>`;
+  }
   document.getElementById('conteudo').innerHTML = html;
 }
 
-function novaAtracao(){
-  document.getElementById('modalNovaAtracao').classList.add('show');
+function mostrarFormAtracao(){
+  document.getElementById('conteudo').innerHTML = `
+    <div class="card">
+      <h3>Nova Atração</h3>
+      <input id="atrNome" class="input" placeholder="Nome: Ex. Hot Wheels">
+      <input id="atrData" type="date" class="input">
+      <input id="atrHora" type="time" class="input">
+      <input id="atrLocal" class="input" placeholder="Local: Arena Principal">
+      <label class="label">Anexar Ingresso/Documento (opcional):</label>
+      <input id="atrFile" type="file" class="input" accept=".pdf,.jpg,.png,.jpeg">
+      <button class="btn" onclick="salvarNovaAtracao()">Salvar</button>
+      <button class="btn btn-sec" onclick="carregarParques()">Cancelar</button>
+    </div>
+  `;
 }
 
 async function salvarNovaAtracao(){
@@ -268,12 +374,17 @@ async function salvarNovaAtracao(){
   const data = document.getElementById('atrData').value;
   const hora = document.getElementById('atrHora').value;
   const local = document.getElementById('atrLocal').value;
-  const {error} = await supabaseClient.from('attractions').insert({
+  if(!nome) return alert('Preenche o nome');
+
+  const {data: atr, error} = await supabaseClient.from('attractions').insert({
     trip_id: viagemAtual.id, nome, data, horario: hora, local, created_by: usuario.id
-  });
+  }).select().single();
+
   if(error) return alert('Erro: ' + error.message);
-  alert('Atração criada! Alarme 30min antes será gerado automático.');
-  fecharModal('modalNovaAtracao');
+
+  await uploadArquivo('atrFile', 'atracao', atr.id);
+
+  alert('Atração criada! Alarme 30min antes gerado.');
   carregarParques();
 }
 
@@ -283,14 +394,14 @@ async function participarAtracao(atracaoId, nomeAtracao){
   const {data: membros} = await supabaseClient.from('members').select('*').eq('family_id', familiaAtual.id);
   if(!membros || membros.length === 0) return alert('Cadastre membros da família primeiro na aba Documentos');
   let html = '<p>Selecione quem vai:</p>';
-  membros.forEach(m=>{ 
-    html += `<div class="checkbox"><input type="checkbox" id="mem_${m.id}" checked><label for="mem_${m.id}">${m.name}</label></div>`; 
+  membros.forEach(m=>{
+    html += `<div class="checkbox"><input type="checkbox" id="mem_${m.id}" checked><label for="mem_${m.id}">${m.name}</label></div>`;
   });
   document.getElementById('listaMembros').innerHTML = html;
   document.getElementById('modalParticipar').classList.add('show');
 }
 
-async function salvarParticipacao(){ 
+async function salvarParticipacao(){
   const {data: membros} = await supabaseClient.from('members').select('*').eq('family_id', familiaAtual.id);
   const selecionados = membros.filter(m => document.getElementById('mem_'+m.id).checked);
   for(const m of selecionados){
@@ -298,15 +409,203 @@ async function salvarParticipacao(){
       attraction_id: atracaoSelecionadaId, member_id: m.id
     });
   }
-  alert('Participação salva! Alarme 30min antes criado automático.'); 
-  fecharModal('modalParticipar'); 
-  carregarParques(); 
+  alert('Participação salva! Alarme 30min antes criado automático.');
+  fecharModal('modalParticipar');
+  carregarParques();
 }
 
+// VOOS
+async function carregarVoos(){
+  const {data: voos} = await supabaseClient.from('flights').select('*').eq('trip_id', viagemAtual.id).order('data_ida');
+  let html = '<h2>✈️ Voos</h2><button class="btn" onclick="mostrarFormVoo()">+ Novo Voo</button>';
+  if(!voos || voos.length === 0) html += '<div class="card"><p>Nenhum voo cadastrado.</p></div>';
+
+  for(const v of voos || []){
+    const docs = await buscarDocs('voo', v.id);
+    html += `<div class="card">
+      <h3>${v.companhia} ${v.numero_voo || ''}</h3>
+      <p>🛫 Ida: ${v.data_ida || '--'} às ${v.hora_ida || '--'} - ${v.origem || ''}</p>
+      <p>🛬 Volta: ${v.data_volta || '--'} às ${v.hora_volta || '--'} - ${v.destino || ''}</p>
+      ${v.localizador? `<p>📍 Localizador: <strong>${v.localizador}</strong></p>` : ''}
+      ${docs.length > 0? '<div class="file-list">' + docs.map(d=>`<div class="file-item"><a href="${d.url}" target="_blank">📄 ${d.nome_arquivo}</a></div>`).join('') + '</div>' : ''}
+    </div>`;
+  }
+  document.getElementById('conteudo').innerHTML = html;
+}
+
+function mostrarFormVoo(){
+  document.getElementById('conteudo').innerHTML = `
+    <div class="card">
+      <h3>Novo Voo</h3>
+      <input id="vooCompanhia" class="input" placeholder="Companhia: Gol, Latam">
+      <input id="vooNumero" class="input" placeholder="Número do voo: G3 1234">
+      <input id="vooOrigem" class="input" placeholder="Origem: GRU">
+      <input id="vooDestino" class="input" placeholder="Destino: BSB">
+      <label class="label">Data/Hora Ida:</label>
+      <input id="vooDataIda" type="date" class="input">
+      <input id="vooHoraIda" type="time" class="input">
+      <label class="label">Data/Hora Volta:</label>
+      <input id="vooDataVolta" type="date" class="input">
+      <input id="vooHoraVolta" type="time" class="input">
+      <input id="vooLocalizador" class="input" placeholder="Localizador: ABC123">
+      <label class="label">Anexar E-ticket (PDF):</label>
+      <input id="vooFile" type="file" class="input" accept=".pdf,.jpg,.png">
+      <button class="btn" onclick="salvarVoo()">Salvar Voo</button>
+      <button class="btn btn-sec" onclick="carregarVoos()">Cancelar</button>
+    </div>
+  `;
+}
+
+async function salvarVoo(){
+  const dados = {
+    trip_id: viagemAtual.id,
+    companhia: document.getElementById('vooCompanhia').value,
+    numero_voo: document.getElementById('vooNumero').value,
+    origem: document.getElementById('vooOrigem').value,
+    destino: document.getElementById('vooDestino').value,
+    data_ida: document.getElementById('vooDataIda').value,
+    hora_ida: document.getElementById('vooHoraIda').value,
+    data_volta: document.getElementById('vooDataVolta').value,
+    hora_volta: document.getElementById('vooHoraVolta').value,
+    localizador: document.getElementById('vooLocalizador').value,
+    created_by: usuario.id
+  };
+  if(!dados.companhia) return alert('Preenche a companhia');
+
+  const {data: voo, error} = await supabaseClient.from('flights').insert(dados).select().single();
+  if(error) return alert('Erro: ' + error.message);
+
+  await uploadArquivo('vooFile', 'voo', voo.id);
+  alert('Voo cadastrado! Alarme 3h antes gerado.');
+  carregarVoos();
+}
+
+// HOSPEDAGEM
+async function carregarHoteis(){
+  const {data: hoteis} = await supabaseClient.from('hotels').select('*').eq('trip_id', viagemAtual.id).order('checkin');
+  let html = '<h2>🏨 Hospedagem</h2><button class="btn" onclick="mostrarFormHotel()">+ Novo Hotel</button>';
+  if(!hoteis || hoteis.length === 0) html += '<div class="card"><p>Nenhum hotel cadastrado.</p></div>';
+
+  for(const h of hoteis || []){
+    const docs = await buscarDocs('hotel', h.id);
+    html += `<div class="card">
+      <h3>${h.nome}</h3>
+      <p>📍 ${h.endereco || 'Endereço não informado'}</p>
+      <p>📅 Check-in: ${h.checkin || '--'} | Check-out: ${h.checkout || '--'}</p>
+      ${h.quartos? `<p>🛏️ Quartos: ${h.quartos}</p>` : ''}
+      ${h.confirmacao? `<p>✅ Confirmação: <strong>${h.confirmacao}</strong></p>` : ''}
+      ${docs.length > 0? '<div class="file-list">' + docs.map(d=>`<div class="file-item"><a href="${d.url}" target="_blank">📄 ${d.nome_arquivo}</a></div>`).join('') + '</div>' : ''}
+    </div>`;
+  }
+  document.getElementById('conteudo').innerHTML = html;
+}
+
+function mostrarFormHotel(){
+  document.getElementById('conteudo').innerHTML = `
+    <div class="card">
+      <h3>Novo Hotel</h3>
+      <input id="hotelNome" class="input" placeholder="Nome do hotel">
+      <input id="hotelEndereco" class="input" placeholder="Endereço completo">
+      <label class="label">Check-in:</label>
+      <input id="hotelCheckin" type="date" class="input">
+      <label class="label">Check-out:</label>
+      <input id="hotelCheckout" type="date" class="input">
+      <input id="hotelQuartos" class="input" placeholder="Quartos: 2 duplos, 1 triplo">
+      <input id="hotelConfirmacao" class="input" placeholder="Nº confirmação">
+      <label class="label">Anexar Voucher/Confirmação (PDF):</label>
+      <input id="hotelFile" type="file" class="input" accept=".pdf,.jpg,.png">
+      <button class="btn" onclick="salvarHotel()">Salvar Hotel</button>
+      <button class="btn btn-sec" onclick="carregarHoteis()">Cancelar</button>
+    </div>
+  `;
+}
+
+async function salvarHotel(){
+  const dados = {
+    trip_id: viagemAtual.id,
+    nome: document.getElementById('hotelNome').value,
+    endereco: document.getElementById('hotelEndereco').value,
+    checkin: document.getElementById('hotelCheckin').value,
+    checkout: document.getElementById('hotelCheckout').value,
+    quartos: document.getElementById('hotelQuartos').value,
+    confirmacao: document.getElementById('hotelConfirmacao').value,
+    created_by: usuario.id
+  };
+  if(!dados.nome) return alert('Preenche o nome do hotel');
+
+  const {data: hotel, error} = await supabaseClient.from('hotels').insert(dados).select().single();
+  if(error) return alert('Erro: ' + error.message);
+
+  await uploadArquivo('hotelFile', 'hotel', hotel.id);
+  alert('Hotel cadastrado!');
+  carregarHoteis();
+}
+
+// TRANSPORTE
+async function carregarTransportes(){
+  const {data: transps} = await supabaseClient.from('transports').select('*').eq('trip_id', viagemAtual.id).order('data');
+  let html = '<h2>🚐 Transporte</h2><button class="btn" onclick="mostrarFormTransporte()">+ Novo Transporte</button>';
+  if(!transps || transps.length === 0) html += '<div class="card"><p>Nenhum transporte cadastrado.</p></div>';
+
+  for(const t of transps || []){
+    const docs = await buscarDocs('transporte', t.id);
+    html += `<div class="card">
+      <h3>${t.tipo} - ${t.empresa || 'Empresa não informada'}</h3>
+      <p>📅 ${t.data || '--'} às ${t.horario || '--:--'}</p>
+      <p>📍 De: ${t.local_saida || '--'} → Para: ${t.local_chegada || '--'}</p>
+      ${t.contato? `<p>📞 Contato: ${t.contato}</p>` : ''}
+      ${docs.length > 0? '<div class="file-list">' + docs.map(d=>`<div class="file-item"><a href="${d.url}" target="_blank">📄 ${d.nome_arquivo}</a></div>`).join('') + '</div>' : ''}
+    </div>`;
+  }
+  document.getElementById('conteudo').innerHTML = html;
+}
+
+function mostrarFormTransporte(){
+  document.getElementById('conteudo').innerHTML = `
+    <div class="card">
+      <h3>Novo Transporte</h3>
+      <input id="transpTipo" class="input" placeholder="Tipo: Van, Carro, Transfer">
+      <input id="transpEmpresa" class="input" placeholder="Empresa">
+      <input id="transpData" type="date" class="input">
+      <input id="transpHora" type="time" class="input">
+      <input id="transpSaida" class="input" placeholder="Local de saída">
+      <input id="transpChegada" class="input" placeholder="Local de chegada">
+      <input id="transpContato" class="input" placeholder="Contato: telefone motorista">
+      <label class="label">Anexar Comprovante/Contrato:</label>
+      <input id="transpFile" type="file" class="input" accept=".pdf,.jpg,.png">
+      <button class="btn" onclick="salvarTransporte()">Salvar Transporte</button>
+      <button class="btn btn-sec" onclick="carregarTransportes()">Cancelar</button>
+    </div>
+  `;
+}
+
+async function salvarTransporte(){
+  const dados = {
+    trip_id: viagemAtual.id,
+    tipo: document.getElementById('transpTipo').value,
+    empresa: document.getElementById('transpEmpresa').value,
+    data: document.getElementById('transpData').value,
+    horario: document.getElementById('transpHora').value,
+    local_saida: document.getElementById('transpSaida').value,
+    local_chegada: document.getElementById('transpChegada').value,
+    contato: document.getElementById('transpContato').value,
+    created_by: usuario.id
+  };
+  if(!dados.tipo) return alert('Preenche o tipo');
+
+  const {data: transp, error} = await supabaseClient.from('transports').insert(dados).select().single();
+  if(error) return alert('Erro: ' + error.message);
+
+  await uploadArquivo('transpFile', 'transporte', transp.id);
+  alert('Transporte cadastrado!');
+  carregarTransportes();
+}
+
+// ALARMES
 async function carregarAlarmes(){
   const {data: alarmes} = await supabaseClient.from('alarms').select('*').eq('trip_id', viagemAtual.id).order('data_hora');
-  let html = '<h2>🔔 Alarmes</h2>';
-  if(!alarmes || alarmes.length === 0) html += '<div class="card"><p>Nenhum alarme ativo. Crie uma atração com horário.</p></div>';
+  let html = '<h2>🔔 Alarmes Automáticos</h2>';
+  if(!alarmes || alarmes.length === 0) html += '<div class="card"><p>Nenhum alarme ativo. Cadastre uma atração ou voo com horário que o alarme é criado automático.</p></div>';
   alarmes?.forEach(a=>{
     const dt = new Date(a.data_hora);
     html += `<div class="card"><h3>${a.titulo}</h3><p>⏰ ${dt.toLocaleString('pt-BR')}</p><p>${a.descricao}</p></div>`;
@@ -314,21 +613,11 @@ async function carregarAlarmes(){
   document.getElementById('conteudo').innerHTML = html;
 }
 
-async function abrirSOS(){
-  if(!sessaoValida) return alert('Faça login na família primeiro');
-  const {data: membros} = await supabaseClient.from('members').select('*').eq('family_id', familiaAtual.id).limit(1);
-  if(!membros || membros.length === 0) return alert('Cadastre membros na aba Documentos primeiro');
-  const eu = membros[0];
-  document.getElementById('dadosSOS').innerHTML = `
-    <p><strong>${eu.name}</strong></p>
-    <p>🚨 Emergência: ${eu.emergencia_nome || 'Não cadastrado'} - ${eu.emergencia_fone || ''}</p>
-    <p>💊 Info Médica: ${eu.info_medica || 'Não informado'}</p>
-    <p style="margin-top:16px;font-size:14px">Mostre esta tela para socorristas</p>
-  `;
-  document.getElementById('modalSOS').classList.add('show');
-}
+// DOCUMENTOS
+async function carregarDocs(){
+  const {data: membros} = await supabaseClient.from('members').select('*').eq('family_id', familiaAtual.id);
 
-function fecharModal(id){ document.getElementById(id).classList.remove('show'); }
-</script>
-</body>
-</html>
+  let html = '<h2>📄 Documentos da Família</h2>';
+  html += '<div class="card"><h3>Cadastrar Membro</h3>';
+  html += '<input id="memNome" class="input" placeholder="Nome completo">';
+  html += '<input
