@@ -1,715 +1,359 @@
-<!DOCTYPE html>
-<html lang="pt-BR">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>15 anos da Isa - Beto Carrero 2026</title>
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<style>
-:root {--azul:#2563EB;--branco:#FFFFFF;--cinza:#F3F4F6;--cinza-escuro:#374151;--vermelho:#dc2626;--verde:#16a34a}
-*{margin:0;padding:0;box-sizing:border-box;font-family:system-ui,-apple-system,sans-serif}
-body{background:var(--cinza);color:var(--cinza-escuro)}
-.header{background:var(--azul);color:var(--branco);padding:16px;display:flex;justify-content:space-between;align-items:center;position:sticky;top:0;z-index:100}
-.btn-sos{background:var(--vermelho);color:#fff;border:none;padding:8px 16px;border-radius:8px;font-weight:700;cursor:pointer}
-.btn-sair{background:transparent;color:#fff;border:1px solid #fff;padding:6px 12px;border-radius:8px;cursor:pointer;font-size:14px}
-.tabs{display:flex;overflow-x:auto;background:var(--branco);border-bottom:2px solid var(--cinza);position:sticky;top:60px;z-index:99}
-.tab{padding:12px 16px;border:none;background:transparent;cursor:pointer;white-space:nowrap;font-weight:600;color:var(--cinza-escuro)}
-.tab.active{color:var(--azul);border-bottom:3px solid var(--azul)}
-.content{padding:16px;max-width:800px;margin:0 auto}
-.card{background:var(--branco);border-radius:12px;padding:16px;margin-bottom:12px;box-shadow:0 1px 3px rgba(0,0,0.1)}
-.btn{background:var(--azul);color:var(--branco);border:none;padding:12px 20px;border-radius:8px;font-weight:600;cursor:pointer;width:100%;margin-top:8px}
-.btn-sec{background:var(--cinza);color:var(--cinza-escuro)}
-.btn-verde{background:var(--verde);color:var(--branco)}
-.modal{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:1000;align-items:center;justify-content:center}
-.modal.show{display:flex}
-.modal-content{background:var(--branco);border-radius:16px;padding:24px;max-width:500px;width:90%;max-height:80vh;overflow-y:auto}
-.input{width:100%;padding:12px;border:2px solid var(--cinza);border-radius:8px;margin:8px 0;font-size:16px}
-.public-counter{background:var(--cinza);padding:8px 12px;border-radius:8px;margin:8px 0;font-size:14px}
-.checkbox{display:flex;align-items:center;margin:8px 0}
-.checkbox input{margin-right:8px;width:20px;height:20px}
-.loading{text-align:center;padding:40px;color:var(--cinza-escuro)}
-.file-list{margin-top:8px;font-size:14px}
-.file-item{background:var(--cinza);padding:8px;border-radius:6px;margin:4px 0;display:flex;justify-content:space-between;align-items:center}
-.file-item a{color:var(--azul);text-decoration:none;font-weight:600}
-.label{font-weight:600;margin-top:12px;display:block;font-size:14px}
-</style>
-</head>
-<body>
-<div class="header">
-  <div><h1>15 anos da Isa</h1></div>
-  <div style="display:flex;gap:8px">
-    <button class="btn-sair" onclick="sair()">Sair</button>
-    <button class="btn-sos" onclick="abrirSOS()">🚨 SOS</button>
-  </div>
-</div>
-<div id="app"><div class="loading">Carregando...</div></div>
+-- ========================================
+-- APAGA TUDO PRIMEIRO - PRA COMEÇAR LIMPO
+-- ========================================
+drop table if exists checkins_localizacao cascade;
+drop table if exists roteiro cascade;
+drop table if exists documents cascade;
+drop table if exists gallery cascade;
+drop table if exists poll_votes cascade;
+drop table if exists poll_options cascade;
+drop table if exists polls cascade;
+drop table if exists messages cascade;
+drop table if exists expense_splits cascade;
+drop table if exists expenses cascade;
+drop table if exists alarms cascade;
+drop table if exists attraction_tickets cascade;
+drop table if exists attractions cascade;
+drop table if exists park_tickets cascade;
+drop table if exists parks cascade;
+drop table if exists flight_tickets cascade;
+drop table if exists flight_passengers cascade;
+drop table if exists flights cascade;
+drop table if exists hotel_guests cascade;
+drop table if exists hotels cascade;
+drop table if exists transfer_passengers cascade;
+drop table if exists transport_providers cascade;
+drop table if exists transfers cascade;
+drop table if exists members cascade;
+drop table if exists families cascade;
+drop table if exists trips cascade;
+drop view if exists public_flight_summary;
 
-<div id="modalSOS" class="modal"><div class="modal-content"><h2 style="color:#dc2626;margin-bottom:16px">🚨 EMERGÊNCIA</h2><div id="dadosSOS"></div><button class="btn" onclick="fecharModal('modalSOS')">Fechar</button></div></div>
-<div id="modalParticipar" class="modal"><div class="modal-content"><h3 id="tituloParticipar"></h3><div id="listaMembros"></div><button class="btn" onclick="salvarParticipacao()">Salvar Participação</button><button class="btn btn-sec" onclick="fecharModal('modalParticipar')">Cancelar</button></div></div>
+-- ========================================
+-- AGORA CRIA TUDO DE NOVO - COM PERMISSÕES CORRETAS
+-- ========================================
+create extension if not exists "uuid-ossp";
 
-<script>
-const SUPABASE_URL = 'https://cfvipeilwbeppqxvqpid.supabase.co';
-const SUPABASE_ANON_KEY = 'sb_publishable_gt9MVCBDhyHkLxmrMZnDjw_lKnogqS4';
-const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+create table trips (
+  id uuid primary key default uuid_generate_v4(),
+  code text unique not null,
+  name text not null,
+  start_date date not null,
+  end_date date not null,
+  orcamento_previsto numeric(10,2),
+  admin_id uuid references auth.users(id),
+  deleted_at timestamptz default null,
+  created_at timestamptz default now()
+);
 
-let usuario = null;
-let viagemAtual = null;
-let familiaAtual = null;
-let sessaoValida = false;
-let atracaoSelecionadaId = null;
+create table families (
+  id uuid primary key default uuid_generate_v4(),
+  trip_id uuid references trips(id) on delete cascade,
+  name text not null,
+  pin_hash text not null,
+  created_by uuid references auth.users(id),
+  created_at timestamptz default now()
+);
 
-init();
-async function init(){
-  const sessao = localStorage.getItem('usuario_logado');
-  if(sessao){
-    usuario = JSON.parse(sessao);
-    await verificarSessaoFamilia();
-    await carregarApp();
-  } else {
-    mostrarLogin();
-  }
-}
+create table members (
+  id uuid primary key default uuid_generate_v4(),
+  family_id uuid references families(id) on delete cascade,
+  trip_id uuid references trips(id) on delete cascade,
+  name text not null,
+  pix_key text,
+  cpf_file_url text,
+  rg_file_url text,
+  emergencia_nome text,
+  emergencia_fone text,
+  info_medica text,
+  created_by uuid references auth.users(id),
+  created_at timestamptz default now()
+);
 
-async function verificarSessaoFamilia(){
-  const sessao = localStorage.getItem('familia_sessao');
-  if(sessao){
-    const dados = JSON.parse(sessao);
-    if(dados.expira > Date.now()){
-      familiaAtual = dados.familia;
-      sessaoValida = true;
-    } else {
-      localStorage.removeItem('familia_sessao');
-    }
-  }
-}
+create table transfers (
+  id uuid primary key default uuid_generate_v4(),
+  trip_id uuid references trips(id) on delete cascade,
+  data_hora timestamptz not null,
+  origem text not null,
+  destino text not null,
+  responsavel text,
+  contato text,
+  placa text,
+  obs text,
+  created_by uuid references auth.users(id),
+  created_at timestamptz default now()
+);
 
-function mostrarLogin(){
-  document.getElementById('app').innerHTML = `
-    <div class="content">
-      <div class="card">
-        <h2>Entrar na Viagem</h2>
-        <input type="text" id="username" class="input" placeholder="Nome de usuário">
-        <input type="password" id="password" class="input" placeholder="Senha">
-        <button class="btn" onclick="fazerLogin()">Entrar</button>
-        <button class="btn btn-sec" onclick="mostrarCadastro()">Criar Conta</button>
-      </div>
-    </div>
-  `;
-}
+create table transport_providers (
+  id uuid primary key default uuid_generate_v4(),
+  trip_id uuid references trips(id) on delete cascade,
+  empresa text not null,
+  whatsapp text not null,
+  tipo_veiculo text,
+  capacidade int,
+  responsavel text,
+  created_by uuid references auth.users(id),
+  created_at timestamptz default now()
+);
 
-function mostrarCadastro(){
-  document.getElementById('app').innerHTML = `
-    <div class="content">
-      <div class="card">
-        <h2>Criar Conta</h2>
-        <input type="text" id="cadUsername" class="input" placeholder="Escolha um nome de usuário">
-        <input type="text" id="cadNome" class="input" placeholder="Seu nome completo">
-        <input type="password" id="cadPassword" class="input" placeholder="Crie uma senha">
-        <button class="btn" onclick="fazerCadastro()">Cadastrar</button>
-        <button class="btn btn-sec" onclick="mostrarLogin()">Já tenho conta</button>
-      </div>
-    </div>
-  `;
-}
+create table transfer_passengers (
+  transfer_id uuid references transfers(id) on delete cascade,
+  member_id uuid references members(id) on delete cascade,
+  primary key (transfer_id, member_id)
+);
 
-async function fazerCadastro(){
-  const username = document.getElementById('cadUsername').value.trim().toLowerCase();
-  const nome = document.getElementById('cadNome').value.trim();
-  const password = document.getElementById('cadPassword').value;
-  if(!username ||!password ||!nome) return alert('Preenche todos os campos');
-  if(username.length < 3) return alert('Usuário precisa ter 3+ caracteres');
-  if(password.length < 4) return alert('Senha precisa ter 4+ caracteres');
-  const {data, error} = await supabaseClient.from('users').insert({username, password, nome_completo: nome}).select().single();
-  if(error){
-    if(error.message.includes('duplicate')) return alert('Esse nome de usuário já existe');
-    return alert('Erro ao cadastrar: ' + error.message);
-  }
-  alert('Conta criada! Fazendo login...');
-  usuario = data;
-  localStorage.setItem('usuario_logado', JSON.stringify(data));
-  await carregarApp();
-}
+create table hotels (
+  id uuid primary key default uuid_generate_v4(),
+  trip_id uuid references trips(id) on delete cascade,
+  nome text not null,
+  endereco text,
+  contato text,
+  checkin date,
+  checkout date,
+  voucher_url text,
+  created_by uuid references auth.users(id),
+  created_at timestamptz default now()
+);
 
-async function fazerLogin(){
-  const username = document.getElementById('username').value.trim().toLowerCase();
-  const password = document.getElementById('password').value;
-  if(!username ||!password) return alert('Preenche usuário e senha');
-  const {data: users, error} = await supabaseClient.from('users').select('*').eq('username', username).eq('password', password);
-  if(error) return alert('Erro no banco: ' + error.message);
-  if(!users || users.length === 0) return alert('Usuário ou senha incorretos');
-  usuario = users[0];
-  localStorage.setItem('usuario_logado', JSON.stringify(users[0]));
-  await carregarApp();
-}
+create table hotel_guests (
+  hotel_id uuid references hotels(id) on delete cascade,
+  member_id uuid references members(id) on delete cascade,
+  quarto text,
+  primary key (hotel_id, member_id)
+);
 
-function sair(){
-  localStorage.clear();
-  location.reload();
-}
+create table flights (
+  id uuid primary key default uuid_generate_v4(),
+  trip_id uuid references trips(id) on delete cascade,
+  origem text,
+  destino text,
+  data date,
+  cia text,
+  numero_voo text,
+  horario text,
+  file_url text,
+  created_at timestamptz default now()
+);
 
-async function carregarApp(){
-  document.getElementById('app').innerHTML = '<div class="loading">Carregando viagem...</div>';
-  try {
-    const {data: viagens, error} = await supabaseClient.from('trips').select('*').is('deleted_at', null).limit(1);
-    if(error) throw error;
-    if(!viagens || viagens.length === 0){
-      mostrarCriarViagem();
-      return;
-    }
-    viagemAtual = viagens[0];
-    if(!sessaoValida){
-      await mostrarSelecaoFamilia();
-    } else {
-      mostrarAbas();
-    }
-  } catch(e) {
-    console.error('Erro carregarApp:', e);
-    document.getElementById('app').innerHTML = `<div class="content"><div class="card"><h2>Erro</h2><p>${e.message}</p><button class="btn" onclick="localStorage.clear();location.reload()">Sair e tentar de novo</button></div></div>`;
-  }
-}
+create table flight_passengers (
+  flight_id uuid references flights(id) on delete cascade,
+  member_id uuid references members(id) on delete cascade,
+  primary key (flight_id, member_id)
+);
 
-function mostrarCriarViagem(){
-  document.getElementById('app').innerHTML = `
-    <div class="content">
-      <div class="card">
-        <h2>Criar Nova Viagem</h2>
-        <input id="viagemNome" class="input" placeholder="Nome: 15 anos da Isa" value="15 anos da Isa">
-        <input id="viagemInicio" type="date" class="input">
-        <input id="viagemFim" type="date" class="input">
-        <button class="btn" onclick="criarViagem()">Criar Viagem</button>
-      </div>
-    </div>
-  `;
-}
+create table flight_tickets (
+  id uuid primary key default uuid_generate_v4(),
+  flight_id uuid references flights(id) on delete cascade,
+  member_id uuid references members(id) on delete cascade,
+  ticket_url text not null,
+  localizador text,
+  assento text,
+  uploaded_by uuid references auth.users(id),
+  created_at timestamptz default now(),
+  unique(flight_id, member_id)
+);
 
-async function criarViagem(){
-  const nome = document.getElementById('viagemNome').value;
-  const inicio = document.getElementById('viagemInicio').value;
-  const fim = document.getElementById('viagemFim').value;
-  const {data, error} = await supabaseClient.from('trips').insert({name: nome, start_date: inicio, end_date: fim, admin_id: usuario.id}).select().single();
-  if(error) return alert('Erro: ' + error.message);
-  viagemAtual = data;
-  alert('Viagem criada! Código: ' + data.code);
-  await mostrarSelecaoFamilia();
-}
+create table parks (
+  id uuid primary key default uuid_generate_v4(),
+  trip_id uuid references trips(id) on delete cascade,
+  nome text not null,
+  data date,
+  created_at timestamptz default now()
+);
 
-async function mostrarSelecaoFamilia(){
-  const {data: familias} = await supabaseClient.from('families').select('*').eq('trip_id', viagemAtual.id);
-  let html = '<div class="content"><div class="card"><h2>Selecione sua família</h2>';
-  if(familias && familias.length > 0){
-    familias.forEach(f=>{
-      html += `<button class="btn" onclick="entrarFamilia('${f.id}','${f.name}')">${f.name}</button>`;
-    });
-  }
-  html += '<button class="btn btn-sec" onclick="mostrarCriarFamilia()">+ Criar Nova Família</button></div></div>';
-  document.getElementById('app').innerHTML = html;
-}
+create table park_tickets (
+  park_id uuid references parks(id) on delete cascade,
+  member_id uuid references members(id) on delete cascade,
+  ticket_url text not null,
+  primary key (park_id, member_id)
+);
 
-function mostrarCriarFamilia(){
-  document.getElementById('app').innerHTML = `
-    <div class="content">
-      <div class="card">
-        <h2>Criar Família</h2>
-        <input id="famNome" class="input" placeholder="Nome da família">
-        <input id="famPin" type="password" class="input" placeholder="PIN de 4 dígitos" maxlength="4">
-        <button class="btn" onclick="criarFamilia()">Criar</button>
-        <button class="btn btn-sec" onclick="mostrarSelecaoFamilia()">Voltar</button>
-      </div>
-    </div>
-  `;
-}
+create table attractions (
+  id uuid primary key default uuid_generate_v4(),
+  trip_id uuid references trips(id) on delete cascade,
+  nome text not null,
+  data_hora timestamptz,
+  created_at timestamptz default now()
+);
 
-async function criarFamilia(){
-  const nome = document.getElementById('famNome').value;
-  const pin = document.getElementById('famPin').value;
-  if(pin.length!== 4) return alert('PIN deve ter 4 dígitos');
-  const pinHash = btoa(pin);
-  const {data, error} = await supabaseClient.from('families').insert({trip_id: viagemAtual.id, name: nome, pin_hash: pinHash, created_by: usuario.id}).select().single();
-  if(error) return alert('Erro: ' + error.message);
-  await entrarFamilia(data.id, data.name);
-}
+create table attraction_tickets (
+  attraction_id uuid references attractions(id) on delete cascade,
+  member_id uuid references members(id) on delete cascade,
+  ticket_url text not null,
+  primary key (attraction_id, member_id)
+);
 
-async function entrarFamilia(familiaId, familiaNome){
-  const pin = prompt('Digite o PIN da família ' + familiaNome);
-  if(!pin) return;
-  const {data: fam} = await supabaseClient.from('families').select('*').eq('id', familiaId).single();
-  if(btoa(pin)!== fam.pin_hash) return alert('PIN incorreto');
-  familiaAtual = fam;
-  sessaoValida = true;
-  localStorage.setItem('familia_sessao', JSON.stringify({familia: fam, expira: Date.now() + 7*24*60*60*1000}));
-  mostrarAbas();
-}
+create table alarms (
+  id uuid primary key default uuid_generate_v4(),
+  trip_id uuid references trips(id) on delete cascade,
+  titulo text not null,
+  descricao text,
+  data_hora timestamptz not null,
+  created_by uuid references auth.users(id),
+  created_at timestamptz default now()
+);
 
-function mostrarAbas(){
-  document.getElementById('app').innerHTML = `
-    <div class="tabs">
-      <button class="tab active" onclick="aba('parques', this)">Parques</button>
-      <button class="tab" onclick="aba('voos', this)">Voos</button>
-      <button class="tab" onclick="aba('hospedagem', this)">Hospedagem</button>
-      <button class="tab" onclick="aba('transporte', this)">Transporte</button>
-      <button class="tab" onclick="aba('alarmes', this)">Alarmes</button>
-      <button class="tab" onclick="aba('docs', this)">Documentos</button>
-    </div>
-    <div class="content" id="conteudo"></div>
-  `;
-  aba('parques', document.querySelector('.tab.active'));
-}
+create table expenses (
+  id uuid primary key default uuid_generate_v4(),
+  trip_id uuid references trips(id) on delete cascade,
+  descricao text not null,
+  valor numeric(10,2) not null,
+  data date not null,
+  categoria text,
+  comprovante_url text,
+  pago_por uuid references members(id),
+  created_by uuid references auth.users(id),
+  created_at timestamptz default now()
+);
 
-async function aba(nome, el){
-  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
-  if(el) el.classList.add('active');
-  document.getElementById('conteudo').innerHTML = '<div class="loading">Carregando...</div>';
-  if(nome === 'parques') await carregarParques();
-  else if(nome === 'voos') await carregarVoos();
-  else if(nome === 'hospedagem') await carregarHoteis();
-  else if(nome === 'transporte') await carregarTransportes();
-  else if(nome === 'alarmes') await carregarAlarmes();
-  else if(nome === 'docs') await carregarDocs();
-}
+create table expense_splits (
+  expense_id uuid references expenses(id) on delete cascade,
+  member_id uuid references members(id) on delete cascade,
+  valor_dividido numeric(10,2) not null,
+  quitado boolean default false,
+  primary key (expense_id, member_id)
+);
 
-async function uploadArquivo(inputId, categoria, referenciaId){
-  const fileInput = document.getElementById(inputId);
-  const file = fileInput.files[0];
-  if(!file) return null;
-  const fileName = `${Date.now()}_${file.name}`;
-  const {data, error} = await supabaseClient.storage.from('documentos').upload(fileName, file);
-  if(error) {
-    alert('Erro ao enviar arquivo: ' + error.message);
-    return null;
-  }
-  const {data: {publicUrl}} = supabaseClient.storage.from('documentos').getPublicUrl(fileName);
-  await supabaseClient.from('documents').insert({
-    trip_id: viagemAtual.id,
-    family_id: familiaAtual.id,
-    categoria,
-    referencia_id: referenciaId,
-    nome_arquivo: file.name,
-    url: publicUrl,
-    created_by: usuario.id
-  });
-  return publicUrl;
-}
+create table messages (
+  id uuid primary key default uuid_generate_v4(),
+  trip_id uuid references trips(id) on delete cascade,
+  user_id uuid references auth.users(id),
+  member_name text,
+  texto text not null,
+  created_at timestamptz default now()
+);
 
-async function buscarDocs(categoria, referenciaId){
-  const {data} = await supabaseClient.from('documents').select('*').eq('categoria', categoria).eq('referencia_id', referenciaId);
-  return data || [];
-}
+create table polls (
+  id uuid primary key default uuid_generate_v4(),
+  trip_id uuid references trips(id) on delete cascade,
+  pergunta text not null,
+  created_by uuid references auth.users(id),
+  created_at timestamptz default now()
+);
 
-async function carregarParques(){
-  const {data: atracoes} = await supabaseClient.from('public_attraction_summary').select('*').eq('trip_id', viagemAtual.id);
-  const agrupado = {};
-  atracoes?.forEach(a=>{
-    if(!agrupado[a.attraction_id]) agrupado[a.attraction_id] = {id: a.attraction_id, nome: a.nome, data: a.data, horario: a.horario, local: a.local, familias: []};
-    if(a.family_name) agrupado[a.attraction_id].familias.push({nome: a.family_name, qtd: a.quantidade});
-  });
-  let html = '<h2>🎢 Parques e Atrações</h2><button class="btn" onclick="mostrarFormAtracao()">+ Nova Atração</button>';
-  if(Object.keys(agrupado).length === 0) html += '<div class="card"><p>Nenhuma atração cadastrada ainda.</p></div>';
-  for(const a of Object.values(agrupado)){
-    const total = a.familias.reduce((s,f)=>s+f.qtd, 0);
-    const docs = await buscarDocs('atracao', a.id);
-    html += `<div class="card">
-      <h3>${a.nome}</h3>
-      <p>⏰ ${a.data || ''} às ${a.horario || '--:--'} - ${a.local || 'Local a definir'}</p>
-      <div class="public-counter">${a.familias.map(f=>'👨‍👩‍👧‍👦 '+f.nome+': '+f.qtd+' pessoas').join('<br>')}<br><strong>Total: ${total} ingressos</strong></div>
-      ${docs.length > 0? '<div class="file-list">' + docs.map(d=>`<div class="file-item"><a href="${d.url}" target="_blank">📄 ${d.nome_arquivo}</a></div>`).join('') + '</div>' : ''}
-      <button class="btn" onclick="participarAtracao('${a.id}','${a.nome}')">Participar desta atração</button>
-    </div>`;
-  }
-  document.getElementById('conteudo').innerHTML = html;
-}
+create table poll_options (
+  id uuid primary key default uuid_generate_v4(),
+  poll_id uuid references polls(id) on delete cascade,
+  texto text not null
+);
 
-function mostrarFormAtracao(){
-  document.getElementById('conteudo').innerHTML = `
-    <div class="card">
-      <h3>Nova Atração</h3>
-      <input id="atrNome" class="input" placeholder="Nome: Ex. Hot Wheels">
-      <input id="atrData" type="date" class="input">
-      <input id="atrHora" type="time" class="input">
-      <input id="atrLocal" class="input" placeholder="Local: Arena Principal">
-      <label class="label">Anexar Ingresso/Documento (opcional):</label>
-      <input id="atrFile" type="file" class="input" accept=".pdf,.jpg,.png,.jpeg">
-      <button class="btn" onclick="salvarNovaAtracao()">Salvar</button>
-      <button class="btn btn-sec" onclick="carregarParques()">Cancelar</button>
-    </div>
-  `;
-}
+create table poll_votes (
+  poll_id uuid references polls(id) on delete cascade,
+  option_id uuid references poll_options(id) on delete cascade,
+  user_id uuid references auth.users(id),
+  primary key (poll_id, user_id)
+);
 
-async function salvarNovaAtracao(){
-  const nome = document.getElementById('atrNome').value;
-  const data = document.getElementById('atrData').value;
-  const hora = document.getElementById('atrHora').value;
-  const local = document.getElementById('atrLocal').value;
-  if(!nome) return alert('Preenche o nome');
-  const {data: atr, error} = await supabaseClient.from('attractions').insert({trip_id: viagemAtual.id, nome, data, horario: hora, local, created_by: usuario.id}).select().single();
-  if(error) return alert('Erro: ' + error.message);
-  await uploadArquivo('atrFile', 'atracao', atr.id);
-  alert('Atração criada! Alarme 30min antes gerado.');
-  carregarParques();
-}
+create table gallery (
+  id uuid primary key default uuid_generate_v4(),
+  trip_id uuid references trips(id) on delete cascade,
+  url text not null,
+  descricao text,
+  uploaded_by_member_id uuid references members(id),
+  created_at timestamptz default now()
+);
 
-async function participarAtracao(atracaoId, nomeAtracao){
-  atracaoSelecionadaId = atracaoId;
-  document.getElementById('tituloParticipar').textContent = nomeAtracao;
-  const {data: membros} = await supabaseClient.from('members').select('*').eq('family_id', familiaAtual.id);
-  if(!membros || membros.length === 0) return alert('Cadastre membros da família primeiro na aba Documentos');
-  let html = '<p>Selecione quem vai:</p>';
-  membros.forEach(m=>{
-    html += `<div class="checkbox"><input type="checkbox" id="mem_${m.id}" checked><label for="mem_${m.id}">${m.name}</label></div>`;
-  });
-  document.getElementById('listaMembros').innerHTML = html;
-  document.getElementById('modalParticipar').classList.add('show');
-}
+create table documents (
+  id uuid primary key default uuid_generate_v4(),
+  member_id uuid references members(id) on delete cascade,
+  family_id uuid references families(id) on delete cascade,
+  tipo text,
+  arquivo_url text not null,
+  voo_id uuid references flights(id),
+  atracao_nome text,
+  created_at timestamptz default now()
+);
 
-async function salvarParticipacao(){
-  const {data: membros} = await supabaseClient.from('members').select('*').eq('family_id', familiaAtual.id);
-  const selecionados = membros.filter(m => document.getElementById('mem_'+m.id).checked);
-  for(const m of selecionados){
-    await supabaseClient.from('attraction_tickets').upsert({attraction_id: atracaoSelecionadaId, member_id: m.id});
-  }
-  alert('Participação salva! Alarme 30min antes criado automático.');
-  fecharModal('modalParticipar');
-  carregarParques();
-}
+create table roteiro (
+  trip_id uuid references trips(id) on delete cascade primary key,
+  content_md text,
+  updated_at timestamptz default now()
+);
 
-async function carregarVoos(){
-  const {data: voos} = await supabaseClient.from('flights').select('*').eq('trip_id', viagemAtual.id).order('data_ida');
-  let html = '<h2>✈️ Voos</h2><button class="btn" onclick="mostrarFormVoo()">+ Novo Voo</button>';
-  if(!voos || voos.length === 0) html += '<div class="card"><p>Nenhum voo cadastrado.</p></div>';
-  for(const v of voos || []){
-    const docs = await buscarDocs('voo', v.id);
-    html += `<div class="card">
-      <h3>${v.companhia} ${v.numero_voo || ''}</h3>
-      <p>🛫 Ida: ${v.data_ida || '--'} às ${v.hora_ida || '--'} - ${v.origem || ''}</p>
-      <p>🛬 Volta: ${v.data_volta || '--'} às ${v.hora_volta || '--'} - ${v.destino || ''}</p>
-      ${v.localizador? `<p>📍 Localizador: <strong>${v.localizador}</strong></p>` : ''}
-      ${docs.length > 0? '<div class="file-list">' + docs.map(d=>`<div class="file-item"><a href="${d.url}" target="_blank">📄 ${d.nome_arquivo}</a></div>`).join('') + '</div>' : ''}
-    </div>`;
-  }
-  document.getElementById('conteudo').innerHTML = html;
-}
+create table checkins_localizacao (
+  id uuid primary key default uuid_generate_v4(),
+  trip_id uuid references trips(id) on delete cascade,
+  member_id uuid references members(id) on delete cascade,
+  lat numeric,
+  lng numeric,
+  pin_temporario text,
+  expira_em timestamptz,
+  created_at timestamptz default now(),
+  unique(trip_id, member_id)
+);
 
-function mostrarFormVoo(){
-  document.getElementById('conteudo').innerHTML = `
-    <div class="card">
-      <h3>Novo Voo</h3>
-      <input id="vooCompanhia" class="input" placeholder="Companhia: Gol, Latam">
-      <input id="vooNumero" class="input" placeholder="Número do voo: G3 1234">
-      <input id="vooOrigem" class="input" placeholder="Origem: GRU">
-      <input id="vooDestino" class="input" placeholder="Destino: BSB">
-      <label class="label">Data/Hora Ida:</label>
-      <input id="vooDataIda" type="date" class="input">
-      <input id="vooHoraIda" type="time" class="input">
-      <label class="label">Data/Hora Volta:</label>
-      <input id="vooDataVolta" type="date" class="input">
-      <input id="vooHoraVolta" type="time" class="input">
-      <input id="vooLocalizador" class="input" placeholder="Localizador: ABC123">
-      <label class="label">Anexar E-ticket (PDF):</label>
-      <input id="vooFile" type="file" class="input" accept=".pdf,.jpg,.png">
-      <button class="btn" onclick="salvarVoo()">Salvar Voo</button>
-      <button class="btn btn-sec" onclick="carregarVoos()">Cancelar</button>
-    </div>
-  `;
-}
+create or replace view public_flight_summary as
+select f.id, f.trip_id, f.origem, f.destino, f.data, f.horario,
+  fam.name as family_name, count(ft.member_id) as quantidade
+from flights f
+left join flight_tickets ft on ft.flight_id = f.id
+left join members m on m.id = ft.member_id
+left join families fam on fam.id = m.family_id
+group by f.id, f.trip_id, f.origem, f.destino, f.data, f.horario, fam.name;
 
-async function salvarVoo(){
-  const dados = {
-    trip_id: viagemAtual.id,
-    companhia: document.getElementById('vooCompanhia').value,
-    numero_voo: document.getElementById('vooNumero').value,
-    origem: document.getElementById('vooOrigem').value,
-    destino: document.getElementById('vooDestino').value,
-    data_ida: document.getElementById('vooDataIda').value,
-    hora_ida: document.getElementById('vooHoraIda').value,
-    data_volta: document.getElementById('vooDataVolta').value,
-    hora_volta: document.getElementById('vooHoraVolta').value,
-    localizador: document.getElementById('vooLocalizador').value,
-    created_by: usuario.id
-  };
-  if(!dados.companhia) return alert('Preenche a companhia');
-  const {data: voo, error} = await supabaseClient.from('flights').insert(dados).select().single();
-  if(error) return alert('Erro: ' + error.message);
-  await uploadArquivo('vooFile', 'voo', voo.id);
-  alert('Voo cadastrado! Alarme 3h antes gerado.');
-  carregarVoos();
-}
+-- ========================================
+-- PERMISSÕES - LIBERADO PRA NÃO DAR ERRO
+-- ========================================
+alter table trips enable row level security;
+alter table families enable row level security;
+alter table members enable row level security;
+alter table transfers enable row level security;
+alter table transport_providers enable row level security;
+alter table transfer_passengers enable row level security;
+alter table hotels enable row level security;
+alter table hotel_guests enable row level security;
+alter table flights enable row level security;
+alter table flight_passengers enable row level security;
+alter table flight_tickets enable row level security;
+alter table parks enable row level security;
+alter table park_tickets enable row level security;
+alter table attractions enable row level security;
+alter table attraction_tickets enable row level security;
+alter table alarms enable row level security;
+alter table expenses enable row level security;
+alter table expense_splits enable row level security;
+alter table messages enable row level security;
+alter table polls enable row level security;
+alter table poll_options enable row level security;
+alter table poll_votes enable row level security;
+alter table gallery enable row level security;
+alter table documents enable row level security;
+alter table roteiro enable row level security;
+alter table checkins_localizacao enable row level security;
 
-async function carregarHoteis(){
-  const {data: hoteis} = await supabaseClient.from('hotels').select('*').eq('trip_id', viagemAtual.id).order('checkin');
-  let html = '<h2>🏨 Hospedagem</h2><button class="btn" onclick="mostrarFormHotel()">+ Novo Hotel</button>';
-  if(!hoteis || hoteis.length === 0) html += '<div class="card"><p>Nenhum hotel cadastrado.</p></div>';
-  for(const h of hoteis || []){
-    const docs = await buscarDocs('hotel', h.id);
-    html += `<div class="card">
-      <h3>${h.nome}</h3>
-      <p>📍 ${h.endereco || 'Endereço não informado'}</p>
-      <p>📅 Check-in: ${h.checkin || '--'} | Check-out: ${h.checkout || '--'}</p>
-      ${h.quartos? `<p>🛏️ Quartos: ${h.quartos}</p>` : ''}
-      ${h.confirmacao? `<p>✅ Confirmação: <strong>${h.confirmacao}</strong></p>` : ''}
-      ${docs.length > 0? '<div class="file-list">' + docs.map(d=>`<div class="file-item"><a href="${d.url}" target="_blank">📄 ${d.nome_arquivo}</a></div>`).join('') + '</div>' : ''}
-    </div>`;
-  }
-  document.getElementById('conteudo').innerHTML = html;
-}
+-- Regra: se tá logado, pode tudo. Sem frescura.
+create policy "tudo_liberado" on trips for all using (auth.role() = 'authenticated') with check (auth.role() = 'authenticated');
+create policy "tudo_liberado" on families for all using (auth.role() = 'authenticated') with check (auth.role() = 'authenticated');
+create policy "tudo_liberado" on members for all using (auth.role() = 'authenticated') with check (auth.role() = 'authenticated');
+create policy "tudo_liberado" on transfers for all using (auth.role() = 'authenticated') with check (auth.role() = 'authenticated');
+create policy "tudo_liberado" on transport_providers for all using (auth.role() = 'authenticated') with check (auth.role() = 'authenticated');
+create policy "tudo_liberado" on transfer_passengers for all using (auth.role() = 'authenticated') with check (auth.role() = 'authenticated');
+create policy "tudo_liberado" on hotels for all using (auth.role() = 'authenticated') with check (auth.role() = 'authenticated');
+create policy "tudo_liberado" on hotel_guests for all using (auth.role() = 'authenticated') with check (auth.role() = 'authenticated');
+create policy "tudo_liberado" on flights for all using (auth.role() = 'authenticated') with check (auth.role() = 'authenticated');
+create policy "tudo_liberado" on flight_passengers for all using (auth.role() = 'authenticated') with check (auth.role() = 'authenticated');
+create policy "tudo_liberado" on flight_tickets for all using (auth.role() = 'authenticated') with check (auth.role() = 'authenticated');
+create policy "tudo_liberado" on parks for all using (auth.role() = 'authenticated') with check (auth.role() = 'authenticated');
+create policy "tudo_liberado" on park_tickets for all using (auth.role() = 'authenticated') with check (auth.role() = 'authenticated');
+create policy "tudo_liberado" on attractions for all using (auth.role() = 'authenticated') with check (auth.role() = 'authenticated');
+create policy "tudo_liberado" on attraction_tickets for all using (auth.role() = 'authenticated') with check (auth.role() = 'authenticated');
+create policy "tudo_liberado" on alarms for all using (auth.role() = 'authenticated') with check (auth.role() = 'authenticated');
+create policy "tudo_liberado" on expenses for all using (auth.role() = 'authenticated') with check (auth.role() = 'authenticated');
+create policy "tudo_liberado" on expense_splits for all using (auth.role() = 'authenticated') with check (auth.role() = 'authenticated');
+create policy "tudo_liberado" on messages for all using (auth.role() = 'authenticated') with check (auth.role() = 'authenticated');
+create policy "tudo_liberado" on polls for all using (auth.role() = 'authenticated') with check (auth.role() = 'authenticated');
+create policy "tudo_liberado" on poll_options for all using (auth.role() = 'authenticated') with check (auth.role() = 'authenticated');
+create policy "tudo_liberado" on poll_votes for all using (auth.role() = 'authenticated') with check (auth.role() = 'authenticated');
+create policy "tudo_liberado" on gallery for all using (auth.role() = 'authenticated') with check (auth.role() = 'authenticated');
+create policy "tudo_liberado" on documents for all using (auth.role() = 'authenticated') with check (auth.role() = 'authenticated');
+create policy "tudo_liberado" on roteiro for all using (auth.role() = 'authenticated') with check (auth.role() = 'authenticated');
+create policy "tudo_liberado" on checkins_localizacao for all using (auth.role() = 'authenticated') with check (auth.role() = 'authenticated');
 
-function mostrarFormHotel(){
-  document.getElementById('conteudo').innerHTML = `
-    <div class="card">
-      <h3>Novo Hotel</h3>
-      <input id="hotelNome" class="input" placeholder="Nome do hotel">
-      <input id="hotelEndereco" class="input" placeholder="Endereço completo">
-      <label class="label">Check-in:</label>
-      <input id="hotelCheckin" type="date" class="input">
-      <label class="label">Check-out:</label>
-      <input id="hotelCheckout" type="date" class="input">
-      <input id="hotelQuartos" class="input" placeholder="Quartos: 2 duplos, 1 triplo">
-      <input id="hotelConfirmacao" class="input" placeholder="Nº confirmação">
-      <label class="label">Anexar Voucher/Confirmação (PDF):</label>
-      <input id="hotelFile" type="file" class="input" accept=".pdf,.jpg,.png">
-      <button class="btn" onclick="salvarHotel()">Salvar Hotel</button>
-      <button class="btn btn-sec" onclick="carregarHoteis()">Cancelar</button>
-    </div>
-  `;
-}
+-- ========================================
+-- STORAGE - BUCKETS PRA ARQUIVOS
+-- ========================================
+insert into storage.buckets (id, name, public) values ('documentos', 'documentos', false) on conflict do nothing;
+insert into storage.buckets (id, name, public) values ('galeria', 'galeria', true) on conflict do nothing;
+insert into storage.buckets (id, name, public) values ('tickets', 'tickets', false) on conflict do nothing;
 
-async function salvarHotel(){
-  const dados = {
-    trip_id: viagemAtual.id,
-    nome: document.getElementById('hotelNome').value,
-    endereco: document.getElementById('hotelEndereco').value,
-    checkin: document.getElementById('hotelCheckin').value,
-    checkout: document.getElementById('hotelCheckout').value,
-    quartos: document.getElementById('hotelQuartos').value,
-    confirmacao: document.getElementById('hotelConfirmacao').value,
-    created_by: usuario.id
-  };
-  if(!dados.nome) return alert('Preenche o nome do hotel');
-  const {data: hotel, error} = await supabaseClient.from('hotels').insert(dados).select().single();
-  if(error) return alert('Erro: ' + error.message);
-  await uploadArquivo('hotelFile', 'hotel', hotel.id);
-  alert('Hotel cadastrado!');
-  carregarHoteis();
-}
-
-async function carregarTransportes(){
-  const {data: transps} = await supabaseClient.from('transports').select('*').eq('trip_id', viagemAtual.id).order('data');
-  let html = '<h2>🚐 Transporte</h2><button class="btn" onclick="mostrarFormTransporte()">+ Novo Transporte</button>';
-  if(!transps || transps.length === 0) html += '<div class="card"><p>Nenhum transporte cadastrado.</p></div>';
-  for(const t of transps || []){
-    const docs = await buscarDocs('transporte', t.id);
-    html += `<div class="card">
-      <h3>${t.tipo} - ${t.empresa || 'Empresa não informada'}</h3>
-      <p>📅 ${t.data || '--'} às ${t.horario || '--:--'}</p>
-      <p>📍 De: ${t.local_saida || '--'} → Para: ${t.local_chegada || '--'}</p>
-      ${t.contato? `<p>📞 Contato: ${t.contato}</p>` : ''}
-      ${docs.length > 0? '<div class="file-list">' + docs.map(d=>`<div class="file-item"><a href="${d.url}" target="_blank">📄 ${d.nome_arquivo}</a></div>`).join('') + '</div>' : ''}
-    </div>`;
-  }
-  document.getElementById('conteudo').innerHTML = html;
-}
-
-function mostrarFormTransporte(){
-  document.getElementById('conteudo').innerHTML = `
-    <div class="card">
-      <h3>Novo Transporte</h3>
-      <input id="transpTipo" class="input" placeholder="Tipo: Van, Carro, Transfer">
-      <input id="transpEmpresa" class="input" placeholder="Empresa">
-      <input id="transpData" type="date" class="input">
-      <input id="transpHora" type="time" class="input">
-      <input id="transpSaida" class="input" placeholder="Local de saída">
-      <input id="transpChegada" class="input" placeholder="Local de chegada">
-      <input id="transpContato" class="input" placeholder="Contato: telefone motorista">
-      <label class="label">Anexar Comprovante/Contrato:</label>
-      <input id="transpFile" type="file" class="input" accept=".pdf,.jpg,.png">
-      <button class="btn" onclick="salvarTransporte()">Salvar Transporte</button>
-      <button class="btn btn-sec" onclick="carregarTransportes()">Cancelar</button>
-    </div>
-  `;
-}
-
-async function salvarTransporte(){
-  const dados = {
-    trip_id: viagemAtual.id,
-    tipo: document.getElementById('transpTipo').value,
-    empresa: document.getElementById('transpEmpresa').value,
-    data: document.getElementById('transpData').value,
-    horario: document.getElementById('transpHora').value,
-    local_saida: document.getElementById('transpSaida').value,
-    local_chegada: document.getElementById('transpChegada').value,
-    contato: document.getElementById('transpContato').value,
-    created_by: usuario.id
-  };
-  if(!dados.tipo) return alert('Preenche o tipo');
-  const {data: transp, error} = await supabaseClient.from('transports').insert(dados).select().single();
-  if(error) return alert('Erro: ' + error.message);
-  await uploadArquivo('transpFile', 'transporte', transp.id);
-  alert('Transporte cadastrado!');
-  carregarTransportes();
-}
-
-async function carregarAlarmes(){
-  const {data: alarmes} = await supabaseClient.from('alarms').select('*').eq('trip_id', viagemAtual.id).order('data_hora');
-  let html = '<h2>🔔 Alarmes Automáticos</h2>';
-  if(!alarmes || alarmes.length === 0) html += '<div class="card"><p>Nenhum alarme ativo. Cadastre uma atração ou voo com horário que o alarme é criado automático.</p></div>';
-  alarmes?.forEach(a=>{
-    const dt = new Date(a.data_hora);
-    html += `<div class="card"><h3>${a.titulo}</h3><p>⏰ ${dt.toLocaleString('pt-BR')}</p><p>${a.descricao}</p></div>`;
-  });
-  document.getElementById('conteudo').innerHTML = html;
-}
-
-async function aba(nome, el){
-  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
-  if(el) el.classList.add('active');
-
-  const conteudo = document.getElementById('conteudo');
-  conteudo.innerHTML = '<div class="loading">Carregando...</div>';
-
-  try {
-    if(nome === 'parques') await carregarParques();
-    else if(nome === 'voos') await carregarVoos();
-    else if(nome === 'hospedagem') await carregarHoteis();
-    else if(nome === 'transporte') await carregarTransportes();
-    else if(nome === 'alarmes') await carregarAlarmes();
-    else if(nome === 'docs') await carregarDocs();
-  } catch(e) {
-    console.error('ERRO na aba ' + nome + ':', e);
-    conteudo.innerHTML = `<div class="card" style="border:2px solid #dc2626">
-      <h3 style="color:#dc2626">Erro ao carregar ${nome}</h3>
-      <p><strong>${e.message}</strong></p>
-      <button class="btn" onclick="aba('${nome}', document.querySelector('.tab.active'))">Tentar de novo</button>
-    </div>`;
-  }
-}
-// Carrega documentos do Supabase e renderiza na aba Documentos
-async function carregarDocs() {
-  const listaDocs = document.getElementById('listaDocs');
-  const abaDocs = document.getElementById('abaDocumentos');
-  
-  if (!listaDocs) {
-    console.error('Elemento #listaDocs não encontrado no HTML');
-    return;
-  }
-
-  // Mostra loading enquanto busca
-  listaDocs.innerHTML = '<li>Carregando documentos...</li>';
-
-  try {
-    // Busca todos os docs da tabela "documentos", mais recentes primeiro
-    const { data: docs, error } = await supabase
-      .from('documentos')
-      .select('*')
-      .order('created_at', { ascending: false });
-
-    if (error) throw error;
-
-    // Se não tiver documentos
-    if (!docs || docs.length === 0) {
-      listaDocs.innerHTML = '<li>Nenhum documento cadastrado ainda.</li>';
-      return;
-    }
-
-    // Limpa a lista e renderiza cada doc
-    listaDocs.innerHTML = '';
-    docs.forEach(doc => {
-      const li = document.createElement('li');
-      li.className = 'doc-item';
-      
-      // Ajuste os campos abaixo conforme sua tabela
-      li.innerHTML = `
-        <strong>${doc.titulo || 'Sem título'}</strong>
-        <p>${doc.descricao || ''}</p>
-        ${doc.url_arquivo ? `<a href="${doc.url_arquivo}" target="_blank">Abrir documento</a>` : ''}
-        <small>Criado em: ${new Date(doc.created_at).toLocaleDateString('pt-BR')}</small>
-      `;
-      
-      listaDocs.appendChild(li);
-    });
-
-  } catch (err) {
-    console.error('Erro ao carregar documentos:', err);
-    listaDocs.innerHTML = `<li style="color: red;">Erro ao carregar: ${err.message}</li>`;
-  }
-}
-
-// Chama a função quando clicar na aba Documentos
-document.addEventListener('DOMContentLoaded', () => {
-  const btnAbaDocs = document.getElementById('btnAbaDocumentos'); // ajuste o ID do seu botão/aba
-  if (btnAbaDocs) {
-    btnAbaDocs.addEventListener('click', carregarDocs);
-  }
-  
-  // Se a aba Documentos já inicia ativa, carrega direto
-  const abaDocsAtiva = document.querySelector('#abaDocumentos.active');
-  if (abaDocsAtiva) {
-    carregarDocs();
-  }
-});
-
-// Carrega documentos do Supabase e renderiza na aba Documentos
-async function carregarDocs() {
-  const listaDocs = document.getElementById('listaDocs');
-  const abaDocs = document.getElementById('abaDocumentos');
-  
-  if (!listaDocs) {
-    console.error('Elemento #listaDocs não encontrado no HTML');
-    return;
-  }
-
-  // Mostra loading enquanto busca
-  listaDocs.innerHTML = '<li>Carregando documentos...</li>';
-
-  try {
-    // Busca todos os docs da tabela "documentos", mais recentes primeiro
-    const { data: docs, error } = await supabase
-      .from('documentos')
-      .select('*')
-      .order('created_at', { ascending: false });
-
-    if (error) throw error;
-
-    // Se não tiver documentos
-    if (!docs || docs.length === 0) {
-      listaDocs.innerHTML = '<li>Nenhum documento cadastrado ainda.</li>';
-      return;
-    }
-
-    // Limpa a lista e renderiza cada doc
-    listaDocs.innerHTML = '';
-    docs.forEach(doc => {
-      const li = document.createElement('li');
-      li.className = 'doc-item';
-      
-      // Ajuste os campos abaixo conforme sua tabela
-      li.innerHTML = `
-        <strong>${doc.titulo || 'Sem título'}</strong>
-        <p>${doc.descricao || ''}</p>
-        ${doc.url_arquivo ? `<a href="${doc.url_arquivo}" target="_blank">Abrir documento</a>` : ''}
-        <small>Criado em: ${new Date(doc.created_at).toLocaleDateString('pt-BR')}</small>
-      `;
-      
-      listaDocs.appendChild(li);
-    });
-
-  } catch (err) {
-    console.error('Erro ao carregar documentos:', err);
-    listaDocs.innerHTML = `<li style="color: red;">Erro ao carregar: ${err.message}</li>`;
-  }
-}
-
-// Chama a função quando clicar na aba Documentos
-document.addEventListener('DOMContentLoaded', () => {
-  const btnAbaDocs = document.getElementById('btnAbaDocumentos'); // ajuste o ID do seu botão/aba
-  if (btnAbaDocs) {
-    btnAbaDocs.addEventListener('click', carregarDocs);
-  }
-  
-  // Se a aba Documentos já inicia ativa, carrega direto
-  const abaDocsAtiva = document.querySelector('#abaDocumentos.active');
-  if (abaDocsAtiva) {
-    carregarDocs();
-  }
-});
-  
-</script>
-</body>
-</html>
+create policy "storage_liberado" on storage.objects for all using (auth.role() = 'authenticated') with check (auth.role() = 'authenticated');
