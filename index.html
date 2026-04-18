@@ -570,3 +570,61 @@ async function carregarDocs(){
   html += '<label class="label">Anexar Documento (RG/CPF/Passaporte):</label>';
   html += '<input id="memFile" type="file" class="input" accept=".pdf,.jpg,.png,.jpeg">';
   html += '<button class="btn" onclick="salvarMembro()">
+'">Salvar Membro</button></div>';
+
+  if(membros && membros.length > 0){
+    html += '<div class="card"><h3>Membros Cadastrados</h3>';
+    for(const m of membros){
+      const docs = await buscarDocs('pessoal', m.id);
+      html += `<div style="border-bottom:1px solid var(--cinza);padding:12px 0;margin-bottom:12px">
+        <strong>${m.name}</strong><br>
+        <small>CPF: ${m.cpf || '---'} | RG: ${m.rg || '---'}</small><br>
+        <small>Emergência: ${m.emergencia_nome || '---'} - ${m.emergencia_fone || '---'}</small><br>
+        <small>Info Médica: ${m.info_medica || '---'}</small>
+        ${docs.length > 0? '<div class="file-list">' + docs.map(d=>`<div class="file-item"><a href="${d.url}" target="_blank">📄 ${d.nome_arquivo}</a></div>`).join('') + '</div>' : ''}
+      </div>`;
+    }
+    html += '</div>';
+  }
+  document.getElementById('conteudo').innerHTML = html;
+}
+
+async function salvarMembro(){
+  const dados = {
+    family_id: familiaAtual.id,
+    name: document.getElementById('memNome').value,
+    emergencia_nome: document.getElementById('memEmergNome').value,
+    emergencia_fone: document.getElementById('memEmergFone').value,
+    info_medica: document.getElementById('memMed').value,
+    cpf: document.getElementById('memCpf').value,
+    rg: document.getElementById('memRg').value
+  };
+  if(!dados.name) return alert('Preenche o nome');
+  const {data: mem, error} = await supabaseClient.from('members').insert(dados).select().single();
+  if(error) return alert('Erro: ' + error.message);
+  await uploadArquivo('memFile', 'pessoal', mem.id);
+  alert('Membro cadastrado!');
+  carregarDocs();
+}
+
+async function abrirSOS(){
+  if(!sessaoValida) return alert('Faça login na família primeiro');
+  const {data: membros} = await supabaseClient.from('members').select('*').eq('family_id', familiaAtual.id).limit(1);
+  if(!membros || membros.length === 0) return alert('Cadastre membros na aba Documentos primeiro');
+  const eu = membros[0];
+  document.getElementById('dadosSOS').innerHTML = `
+    <p><strong>${eu.name}</strong></p>
+    <p>🚨 Emergência: ${eu.emergencia_nome || 'Não cadastrado'} - ${eu.emergencia_fone || ''}</p>
+    <p>💊 Info Médica: ${eu.info_medica || 'Não informado'}</p>
+    <p>📄 CPF: ${eu.cpf || '---'} | RG: ${eu.rg || '---'}</p>
+    <p style="margin-top:16px;font-size:14px">Mostre esta tela para socorristas</p>
+  `;
+  document.getElementById('modalSOS').classList.add('show');
+}
+
+function fecharModal(id){ 
+  document.getElementById(id).classList.remove('show'); 
+}
+</script>
+</body>
+</html>
