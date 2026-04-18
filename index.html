@@ -265,8 +265,8 @@
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script>
-    const SUPABASE_URL = 'https://cfvipeilwbeppqxvqpid.supabase.co';
-    const SUPABASE_ANON_KEY = 'sb_publishable_gt9MVCBDhyHkLxmrMZnDjw_lKnogqS4';
+    const SUPABASE_URL = 'COLE_SUA_URL_AQUI';
+    const SUPABASE_ANON_KEY = 'COLE_SUA_ANON_KEY_AQUI';
 
     const state = {
       supabase: null,
@@ -279,6 +279,7 @@
         families: [],
         members: [],
         transfers: [],
+        transportProviders: [],
         hotels: [],
         flights: [],
         flightTickets: [],
@@ -431,12 +432,13 @@
       if(!state.currentTrip || !state.supabase) return;
       const tripId = state.currentTrip.id;
       const [
-        families, members, transfers, hotels, hotelGuests, flights, flightPassengers, flightTickets, parks, parkTickets,
+        families, members, transfers, transportProviders, hotels, hotelGuests, flights, flightPassengers, flightTickets, parks, parkTickets,
         attractions, attractionTickets, alarms, expenses, expenseSplits, messages, gallery, documents, roteiro, checkins
       ] = await Promise.all([
         state.supabase.from('families').select('*').eq('trip_id',tripId).order('created_at'),
         state.supabase.from('members').select('*').eq('trip_id',tripId).order('name'),
         state.supabase.from('transfers').select('*').eq('trip_id',tripId).order('data_hora'),
+        state.supabase.from('transport_providers').select('*').eq('trip_id',tripId).order('empresa'),
         state.supabase.from('hotels').select('*').eq('trip_id',tripId).order('checkin'),
         state.supabase.from('hotel_guests').select('*'),
         state.supabase.from('flights').select('*').eq('trip_id',tripId).order('data'),
@@ -451,7 +453,7 @@
         state.supabase.from('expense_splits').select('*'),
         state.supabase.from('messages').select('*').eq('trip_id',tripId).order('created_at'),
         state.supabase.from('gallery').select('*').eq('trip_id',tripId).order('created_at',{ascending:false}),
-        state.supabase.from('documents').select('*').in('family_id', (state.cache.families||[]).map(f=>f.id).concat('00000000-0000-0000-0000-000000000000')),
+        state.supabase.from('documents').select('*'),
         state.supabase.from('roteiro').select('*').eq('trip_id',tripId).maybeSingle(),
         state.supabase.from('checkins_localizacao').select('*').eq('trip_id',tripId).order('created_at',{ascending:false}),
       ]);
@@ -459,6 +461,7 @@
       state.cache.families = families.data || [];
       state.cache.members = members.data || [];
       state.cache.transfers = transfers.data || [];
+      state.cache.transportProviders = transportProviders.data || [];
       state.cache.hotels = hotels.data || [];
       state.cache.hotelGuests = hotelGuests.data || [];
       state.cache.flights = flights.data || [];
@@ -473,7 +476,11 @@
       state.cache.expenseSplits = expenseSplits.data || [];
       state.cache.messages = messages.data || [];
       state.cache.gallery = gallery.data || [];
-      state.cache.documents = documents.data || [];
+      state.cache.documents = (documents.data || []).filter(d => {
+        const famIds = state.cache.families.map(f=>f.id);
+        const memberIds = state.cache.members.map(m=>m.id);
+        return famIds.includes(d.family_id) || memberIds.includes(d.member_id) || String(d.atracao_nome||'').startsWith('hotel:');
+      });
       state.cache.roteiro = roteiro.data || null;
       state.cache.checkins = checkins.data || [];
 
@@ -518,6 +525,45 @@
     function hotelGuestMembers(hotelId){
       const ids = state.cache.hotelGuests.filter(h=>h.hotel_id===hotelId).map(h=>h.member_id);
       return state.cache.members.filter(m=>ids.includes(m.id));
+    }
+    function hotelFamilies(hotelId){
+      const ids = [...new Set(hotelGuestMembers(hotelId).map(m=>m.family_id))];
+      return state.cache.families.filter(f=>ids.includes(f.id));
+    }
+    function docsByRef(tipo, ref, familyId){
+      return state.cache.documents.filter(d=>d.tipo===tipo && d.atracao_nome===ref && (!familyId || d.family_id===familyId));
+    }
+    function docByRef(tipo, ref, familyId){
+      return docsByRef(tipo, ref, familyId)[0] || null;
+    }
+    function hotelRef(hotelId){ return `hotel:${hotelId}`; }
+    function waHref(phone=''){
+      const digits = String(phone||'').replace(/\D/g,'');
+      if(!digits) return '';
+      const withCountry = digits.startsWith('55') ? digits : `55${digits}`;
+      return `https://wa.me/${withCountry}`;
+    }
+    function renderWhatsApp(phone, label='WhatsApp'){
+      return phone ? `<a class="btn secondary small" href="${waHref(phone)}" target="_blank">${label}</a>` : '';
+    }
+    function renderMaps(address){
+      return address ? `<a class="btn secondary small" href="https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(address)}" target="_blank">Abrir no Maps</a>` : '';
+    }
+    function renderOpenOriginal(url, label='Abrir original'){
+      return url ? `<a class="btn secondary small" href="${url}" target="_blank">${label}</a>` : '';
+    }
+    function entityMeta(){
+      try{return JSON.parse(localStorage.getItem('vg_entity_meta')||'{}')}catch(e){return {}}
+    }
+    function getEntityMeta(type,id){
+      const m=entityMeta(); return (m[type]||{})[id]||{};
+    }
+    function setEntityMeta(type,id,value){
+      const m=entityMeta(); m[type]=m[type]||{}; m[type][id]={...(m[type][id]||{}),...value};
+      localStorage.setItem('vg_entity_meta', JSON.stringify(m));
+    }
+    function checkedValues(name){
+      return [...document.querySelectorAll(`input[name="${name}"]:checked`)].map(i=>i.value);
     }
     function flightPassengers(flightId){
       const ids = state.cache.flightPassengers.filter(fp=>fp.flight_id===flightId).map(fp=>fp.member_id);
@@ -572,25 +618,61 @@
     }
 
     function renderTransporte(){
-      const card = baseSection('Transporte', 'Translados e prestadores visíveis para todo o grupo.');
+      const card = baseSection('Transporte', 'Translados visíveis para todo o grupo, com responsável e WhatsApp clicável.');
+      const providerOptions = state.cache.transportProviders.map(p=>`<option value="${p.id}">${escapeHtml(p.empresa)}${p.responsavel ? ' — '+escapeHtml(p.responsavel):''}</option>`).join('');
+      const hotelOptions = state.cache.hotels.map(h=>`<option value="${escapeHtml(h.nome)}">${escapeHtml(h.nome)}${h.endereco ? ' — '+escapeHtml(h.endereco):''}</option>`).join('');
+
+      const providerCard = el('div','card');
+      providerCard.innerHTML = `
+        <h4 style="margin-bottom:10px">Cadastro de responsável do transporte</h4>
+        <div class="form-grid">
+          <div class="field"><label>Empresa / apelido</label><input id="fProviderEmpresa" placeholder="Van da Maria"></div>
+          <div class="field"><label>Responsável</label><input id="fProviderResponsavel" placeholder="Maria"></div>
+          <div class="field"><label>WhatsApp</label><input id="fProviderWhatsapp" placeholder="(47) 99999-9999"></div>
+          <div class="field"><label>Tipo de veículo</label><input id="fProviderTipo" placeholder="Van, carro, ônibus..."></div>
+        </div>`;
+      const btnProvider = el('button','btn secondary','Salvar responsável');
+      btnProvider.onclick = async ()=>{
+        const payload = {
+          trip_id: state.currentTrip.id,
+          empresa: $('#fProviderEmpresa').value.trim(),
+          responsavel: $('#fProviderResponsavel').value.trim(),
+          whatsapp: $('#fProviderWhatsapp').value.trim(),
+          tipo_veiculo: $('#fProviderTipo').value.trim()
+        };
+        if(!payload.empresa || !payload.whatsapp) return showToast('Preencha empresa/apelido e WhatsApp.');
+        const {error} = await state.supabase.from('transport_providers').insert(payload);
+        if(error) return showToast(error.message);
+        await refreshAll(); renderApp();
+      };
+      providerCard.append(btnProvider);
+      card.append(providerCard, el('div','divider'));
+
       const form = el('div','form-grid');
       form.innerHTML = `
         <div class="field"><label>Data e hora</label><input id="fTransferData" type="datetime-local"></div>
-        <div class="field"><label>Responsável / empresa</label><input id="fTransferResp" placeholder="Van da Maria"></div>
+        <div class="field"><label>Responsável cadastrado</label><select id="fTransferProvider"><option value="">Selecione</option>${providerOptions}</select></div>
         <div class="field"><label>Origem</label><input id="fTransferOrigem" placeholder="Aeroporto NVT"></div>
-        <div class="field"><label>Destino</label><input id="fTransferDestino" placeholder="Hotel em Penha"></div>
-        <div class="field"><label>Contato</label><input id="fTransferContato" placeholder="(47) 99999-9999"></div>
+        <div class="field"><label>Destino</label><input id="fTransferDestino" list="hotelDestinationList" placeholder="Escolha uma hospedagem ou digite outro destino"><datalist id="hotelDestinationList">${hotelOptions}</datalist></div>
+        <div class="field"><label>WhatsApp</label><input id="fTransferContato" placeholder="Preenchido pelo responsável"></div>
         <div class="field"><label>Placa</label><input id="fTransferPlaca" placeholder="ABC-1234"></div>
         <div class="field" style="grid-column:1/-1"><label>Observações</label><textarea id="fTransferObs" placeholder="Parada no mercado, cadeirinha, bagagens..."></textarea></div>`;
+      const providerSelect = form.querySelector('#fTransferProvider');
+      providerSelect.onchange = ()=>{
+        const p = state.cache.transportProviders.find(x=>x.id===providerSelect.value);
+        if(!p) return;
+        $('#fTransferContato').value = p.whatsapp || '';
+      };
       const btn = el('button','btn','Adicionar translado');
       btn.onclick = async ()=>{
+        const provider = state.cache.transportProviders.find(x=>x.id===$('#fTransferProvider').value);
         const payload = {
           trip_id: state.currentTrip.id,
           data_hora: $('#fTransferData').value,
-          responsavel: $('#fTransferResp').value.trim(),
+          responsavel: provider ? `${provider.empresa}${provider.responsavel ? ' - '+provider.responsavel:''}` : '',
           origem: $('#fTransferOrigem').value.trim(),
           destino: $('#fTransferDestino').value.trim(),
-          contato: $('#fTransferContato').value.trim(),
+          contato: $('#fTransferContato').value.trim() || provider?.whatsapp || '',
           placa: $('#fTransferPlaca').value.trim(),
           obs: $('#fTransferObs').value.trim()
         };
@@ -607,7 +689,8 @@
         item.innerHTML = `<div class="item-head">
           <div><b>${escapeHtml(t.origem)} → ${escapeHtml(t.destino)}</b>
           <div class="fine">${formatDate(t.data_hora)} • ${escapeHtml(t.responsavel || 'Responsável a definir')}</div>
-          <div class="fine">${escapeHtml(t.contato || '')} ${t.placa ? '• '+escapeHtml(t.placa):''}</div>
+          <div class="inline-actions">${renderWhatsApp(t.contato, 'WhatsApp do transporte')}</div>
+          ${t.placa ? `<div class="fine">Placa: ${escapeHtml(t.placa)}</div>`:''}
           ${t.obs ? `<div class="fine" style="margin-top:6px">${escapeHtml(t.obs)}</div>`:''}
           </div>
           <button class="btn secondary small">Criar alarme</button>
@@ -629,7 +712,7 @@
     }
 
     function renderHospedagem(){
-      const card = baseSection('Hospedagem', 'Cada família pode ter sua própria reserva, voucher e hóspedes.');
+      const card = baseSection('Hospedagem', 'Reserva por família, com número da reserva, WhatsApp clicável, Maps e voucher privado por família.');
       const familiesOptions = state.cache.families.map(f=>`<option value="${f.id}">${escapeHtml(f.name)}</option>`).join('');
       const membersOptions = state.cache.members.map(m=>`<option value="${m.id}">${escapeHtml(m.name)} — ${escapeHtml(familyOfMember(m.id)?.name || '')}</option>`).join('');
       const form = el('div','form-grid');
@@ -638,8 +721,9 @@
         <div class="field"><label>Família responsável</label><select id="fHotelFamily"><option value="">Selecione</option>${familiesOptions}</select></div>
         <div class="field"><label>Check-in</label><input id="fHotelCheckin" type="date"></div>
         <div class="field"><label>Check-out</label><input id="fHotelCheckout" type="date"></div>
-        <div class="field"><label>Contato</label><input id="fHotelContato" placeholder="Telefone / WhatsApp"></div>
-        <div class="field"><label>Endereço</label><input id="fHotelEndereco" placeholder="Rua, número, cidade"></div>
+        <div class="field"><label>WhatsApp</label><input id="fHotelContato" placeholder="(47) 99999-9999"></div>
+        <div class="field"><label>Número da reserva</label><input id="fHotelReserva" placeholder="ABC123"></div>
+        <div class="field" style="grid-column:1/-1"><label>Endereço</label><input id="fHotelEndereco" placeholder="Rua, número, cidade"></div>
         <div class="field" style="grid-column:1/-1"><label>Hóspedes vinculados</label><select id="fHotelGuests" multiple size="5">${membersOptions}</select><div class="fine">Segure Ctrl ou toque múltiplo para selecionar.</div></div>
       `;
       const btns = el('div','btn-row');
@@ -657,6 +741,7 @@
         if(!payload.nome) return showToast('Informe o hotel.');
         const {data,error} = await state.supabase.from('hotels').insert(payload).select().single();
         if(error) return showToast(error.message);
+        setEntityMeta('hotels', data.id, {reserva_numero: $('#fHotelReserva').value.trim()});
         const selected = [...$('#fHotelGuests').selectedOptions].map(o=>({hotel_id:data.id, member_id:o.value}));
         if(selected.length) await state.supabase.from('hotel_guests').insert(selected);
         await refreshAll(); renderApp();
@@ -666,20 +751,23 @@
       const list = el('div','list');
       if(!state.cache.hotels.length) list.innerHTML = '<div class="empty">Nenhuma hospedagem cadastrada.</div>';
       state.cache.hotels.forEach(h=>{
-        const fam = state.cache.families.find(f=>f.id===h.family_id);
         const guests = hotelGuestMembers(h.id);
+        const familiesHere = hotelFamilies(h.id);
+        const meta = getEntityMeta('hotels', h.id);
         const item = el('div','item');
         item.innerHTML = `
           <div class="item-head">
             <div>
               <b>${escapeHtml(h.nome)}</b>
-              <div class="fine">${formatDate(h.checkin)} até ${formatDate(h.checkout)} ${fam ? '• '+escapeHtml(fam.name):''}</div>
+              <div class="fine">${formatDate(h.checkin)} até ${formatDate(h.checkout)}</div>
+              ${meta.reserva_numero ? `<div class="fine">Reserva: ${escapeHtml(meta.reserva_numero)}</div>`:''}
+              <div class="inline-actions">${renderWhatsApp(h.contato, 'WhatsApp')} ${renderMaps(h.endereco)}</div>
               <div class="fine">${escapeHtml(h.endereco || '')}</div>
-              <div class="fine">${escapeHtml(h.contato || '')}</div>
+              <div class="fine"><b>Famílias hospedadas aqui:</b> ${familiesHere.map(f=>escapeHtml(f.name)).join(', ') || 'Nenhuma família vinculada'}</div>
               <div class="inline-actions">${guests.map(g=>`<span class="pill">${escapeHtml(g.name)}</span>`).join('') || '<span class="fine">Sem hóspedes vinculados</span>'}</div>
             </div>
             <div class="btn-row">
-              <button class="btn secondary small">Voucher</button>
+              <button class="btn secondary small">Meu voucher</button>
               <button class="btn secondary small">CPF dos hóspedes</button>
             </div>
           </div>`;
@@ -696,13 +784,31 @@
       if(!state.currentFamily || !state.familyPinVerified) return openFamilyAccess('Para ver voucher e documentos do hotel, ative sua família e confirme o PIN.');
       const guestFamilies = [...new Set(guests.map(g=>g.family_id))];
       if(guestFamilies.length && !guestFamilies.includes(state.currentFamily.id)) return showToast('Este voucher pertence a outra família.');
-      const content = `
+      const ref = hotelRef(hotel.id);
+      const voucherDoc = docByRef('hotel_voucher', ref, state.currentFamily.id);
+      const meta = getEntityMeta('hotels', hotel.id);
+      openModal(`
         <h3>${escapeHtml(hotel.nome)}</h3>
-        <div class="fine">${formatDate(hotel.checkin)} até ${formatDate(hotel.checkout)}</div>
+        <div class="fine">${formatDate(hotel.checkin)} até ${formatDate(hotel.checkout)} ${meta.reserva_numero ? '• Reserva '+escapeHtml(meta.reserva_numero):''}</div>
+        <div class="inline-actions" style="margin-top:10px">${renderWhatsApp(hotel.contato,'WhatsApp')} ${renderMaps(hotel.endereco)} ${renderOpenOriginal(voucherDoc?.arquivo_url)}</div>
         <div class="divider"></div>
-        <div class="media-box">${hotel.voucher_url ? `<iframe class="viewer-iframe" src="${hotel.voucher_url}"></iframe>` : 'Nenhum voucher enviado ainda.'}</div>
-      `;
-      openModal(content);
+        <div class="field"><label>Enviar / atualizar comprovante da hospedagem</label><input id="uploadHotelVoucher" type="file" accept=".pdf,image/*"></div>
+        <div class="btn-row" style="margin-top:10px"><button class="btn" id="btnSaveHotelVoucher">Salvar comprovante</button></div>
+        <div class="divider"></div>
+        <div class="media-box">${voucherDoc?.arquivo_url ? `<iframe class="viewer-iframe" src="${voucherDoc.arquivo_url}"></iframe>` : 'Nenhum voucher enviado ainda para sua família.'}</div>
+      `);
+      $('#btnSaveHotelVoucher').onclick = async ()=>{
+        const file = $('#uploadHotelVoucher').files[0];
+        if(!file) return showToast('Selecione um arquivo.');
+        const url = await uploadFile('documentos', file, `${state.currentTrip.id}/hotels/${hotel.id}/${state.currentFamily.id}_${Date.now()}_${file.name}`);
+        if(!url) return;
+        const existing = docByRef('hotel_voucher', ref, state.currentFamily.id);
+        let res;
+        if(existing) res = await state.supabase.from('documents').update({arquivo_url:url}).eq('id', existing.id);
+        else res = await state.supabase.from('documents').insert({member_id:null, family_id:state.currentFamily.id, tipo:'hotel_voucher', arquivo_url:url, atracao_nome:ref});
+        if(res.error) return showToast(res.error.message);
+        await refreshAll(); renderApp(); closeModal(); showToast('Comprovante salvo.');
+      };
     }
 
     function openFamilyDocsByHotel(hotel, guests){
@@ -714,7 +820,7 @@
           ${docs.map(g=>`
             <div class="item">
               <b>${escapeHtml(g.name)}</b>
-              <div class="fine">CPF</div>
+              <div class="inline-actions" style="margin:8px 0">${renderOpenOriginal(g.cpf_file_url)}</div>
               <div class="media-box">${g.cpf_file_url ? `<iframe class="viewer-iframe" src="${g.cpf_file_url}"></iframe>` : 'CPF não enviado.'}</div>
             </div>`).join('') || '<div class="empty">Nenhum hóspede da sua família nesta reserva.</div>'}
         </div>
@@ -732,6 +838,7 @@
         <div class="field"><label>Horário</label><input id="fFlightHorario" placeholder="18:30"></div>
         <div class="field"><label>Companhia</label><input id="fFlightCia" placeholder="Gol"></div>
         <div class="field"><label>Número do voo</label><input id="fFlightNumero" placeholder="1234"></div>
+        <div class="field"><label>Localizador / número da reserva</label><input id="fFlightReserva" placeholder="ABC123"></div>
         <div class="field" style="grid-column:1/-1"><label>Passageiros</label><select id="fFlightPassengers" multiple size="6">${membersOptions}</select></div>
       `;
       const btn = el('button','btn','Salvar voo');
@@ -748,8 +855,13 @@
         if(!payload.origem || !payload.destino) return showToast('Preencha origem e destino.');
         const {data,error} = await state.supabase.from('flights').insert(payload).select().single();
         if(error) return showToast(error.message);
-        const passengers = [...$('#fFlightPassengers').selectedOptions].map(o=>({flight_id:data.id, member_id:o.value}));
+        const passengerIds = [...$('#fFlightPassengers').selectedOptions].map(o=>o.value);
+        const passengers = passengerIds.map(id=>({flight_id:data.id, member_id:id}));
         if(passengers.length) await state.supabase.from('flight_passengers').insert(passengers);
+        const reserva = $('#fFlightReserva').value.trim();
+        if(passengerIds.length && reserva){
+          await state.supabase.from('flight_tickets').insert(passengerIds.map(id=>({flight_id:data.id, member_id:id, ticket_url:'', localizador:reserva})));
+        }
         await refreshAll(); renderApp();
       };
       card.append(form, btn, el('div','divider'));
@@ -763,6 +875,7 @@
             <div>
               <b>${escapeHtml(f.origem||'-')} → ${escapeHtml(f.destino||'-')}</b>
               <div class="fine">${formatDate(f.data)} ${escapeHtml(f.horario||'')} ${escapeHtml(f.cia||'')} ${escapeHtml(f.numero_voo||'')}</div>
+              <div class="fine">Reserva: ${escapeHtml((state.cache.flightTickets.find(t=>t.flight_id===f.id && t.localizador)?.localizador) || 'a definir')}</div>
               <div class="inline-actions">${pax.map(p=>`<button class="btn secondary small pax-btn" data-member="${p.id}">${escapeHtml(p.name)}</button>`).join('') || '<span class="fine">Sem passageiros vinculados.</span>'}</div>
             </div>
           </div>`;
@@ -800,19 +913,22 @@
           </div>
         </div>
       `);
-      $('#btnSaveFlightTicket').onclick = ()=> saveFlightTicket(flightId, memberId, $('#uploadFlightTicket').files[0]);
+      $('#btnSaveFlightTicket').onclick = ()=> saveFlightTicket(flightId, memberId, $('#uploadFlightTicket').files[0], $('#flightLocator').value.trim());
     }
 
-    async function saveFlightTicket(flightId, memberId, file){
-      if(!file) return showToast('Selecione um arquivo.');
-      const url = await uploadFile('tickets', file, `${state.currentTrip.id}/flights/${flightId}/${memberId}_${Date.now()}_${file.name}`);
-      if(!url) return;
+    async function saveFlightTicket(flightId, memberId, file, localizador=''){
       const existing = ticketForFlight(flightId, memberId);
+      let url = existing?.ticket_url || '';
+      if(file){
+        url = await uploadFile('tickets', file, `${state.currentTrip.id}/flights/${flightId}/${memberId}_${Date.now()}_${file.name}`);
+        if(!url) return;
+      }
+      if(!url && !localizador) return showToast('Envie a passagem ou informe o localizador.');
       if(existing){
-        const {error} = await state.supabase.from('flight_tickets').update({ticket_url:url}).eq('id', existing.id);
+        const {error} = await state.supabase.from('flight_tickets').update({ticket_url:url, localizador}).eq('id', existing.id);
         if(error) return showToast(error.message);
       } else {
-        const {error} = await state.supabase.from('flight_tickets').insert({flight_id:flightId, member_id:memberId, ticket_url:url});
+        const {error} = await state.supabase.from('flight_tickets').insert({flight_id:flightId, member_id:memberId, ticket_url:url, localizador});
         if(error) return showToast(error.message);
       }
       await refreshAll(); renderApp(); closeModal(); showToast('Passagem salva.');
@@ -874,11 +990,13 @@
             <div class="divider"></div>
             <div class="field"><label>Enviar / atualizar ingresso</label><input id="uploadParkTicket" type="file" accept=".pdf,image/*"></div>
             <div class="btn-row" style="margin-top:10px"><button class="btn" id="btnSaveParkTicket">Salvar ingresso</button></div>
+            <div class="inline-actions" style="margin-top:10px">${renderOpenOriginal(ticket?.ticket_url)}</div>
             <div class="divider"></div>
             <div class="media-box">${ticket?.ticket_url ? `<iframe class="viewer-iframe" src="${ticket.ticket_url}"></iframe>` : 'Nenhum ingresso enviado ainda.'}</div>
           </div>
           <div>
             <h3>CPF</h3>
+            <div class="inline-actions" style="margin-bottom:10px">${renderOpenOriginal(member.cpf_file_url)}</div>
             <div class="media-box">${member.cpf_file_url ? `<iframe class="viewer-iframe" src="${member.cpf_file_url}"></iframe>` : 'CPF não enviado.'}</div>
           </div>
         </div>
@@ -949,11 +1067,13 @@
             <h3>${escapeHtml(attraction.nome)} • ${escapeHtml(member.name)}</h3>
             <div class="field"><label>Enviar / atualizar ingresso</label><input id="uploadAttrTicket" type="file" accept=".pdf,image/*"></div>
             <div class="btn-row" style="margin-top:10px"><button class="btn" id="btnSaveAttrTicket">Salvar ingresso</button></div>
+            <div class="inline-actions" style="margin-top:10px">${renderOpenOriginal(ticket?.ticket_url)}</div>
             <div class="divider"></div>
             <div class="media-box">${ticket?.ticket_url ? `<iframe class="viewer-iframe" src="${ticket.ticket_url}"></iframe>` : 'Nenhum ingresso enviado ainda.'}</div>
           </div>
           <div>
             <h3>CPF</h3>
+            <div class="inline-actions" style="margin-bottom:10px">${renderOpenOriginal(member.cpf_file_url)}</div>
             <div class="media-box">${member.cpf_file_url ? `<iframe class="viewer-iframe" src="${member.cpf_file_url}"></iframe>` : 'CPF não enviado.'}</div>
           </div>
         </div>
@@ -1040,27 +1160,67 @@ END:VCALENDAR`;
         <div class="field"><label>Data</label><input id="fExpenseDate" type="date"></div>
         <div class="field"><label>Pago por</label><select id="fExpensePayer"><option value="">Selecione</option>${memberOptions}</select></div>
         <div class="field"><label>Categoria</label><input id="fExpenseCategory" placeholder="Transporte, mercado, ingresso..."></div>
-        <div class="field" style="grid-column:1/-1"><label>Dividir com</label><select id="fExpenseSplit" multiple size="6">${memberOptions}</select></div>
-        <div class="field" style="grid-column:1/-1"><label>Comprovante</label><input id="fExpenseProof" type="file" accept=".pdf,image/*"></div>
+        <div class="field" style="grid-column:1/-1"><label>Dividir com</label><div id="fExpenseSplitChecks" class="grid grid-3">${state.cache.members.map(m=>`<label class="item" style="padding:10px"><input type="checkbox" name="expenseSplit" value="${m.id}"> ${escapeHtml(m.name)}</label>`).join("")}</div></div>
+        <div class="field" style="grid-column:1/-1"><label>Comprovante (opcional)</label><input id="fExpenseProof" type="file" accept=".pdf,image/*"></div>
       `;
       const btn = el('button','btn','Salvar gasto');
       btn.onclick = async ()=>{
         const val = Number($('#fExpenseValue').value || 0);
-        const splitIds = [...$('#fExpenseSplit').selectedOptions].map(o=>o.value);
+        const splitIds = checkedValues('expenseSplit');
         if(!$('#fExpenseDesc').value.trim() || !val || !$('#fExpensePayer').value || !splitIds.length) return showToast('Preencha descrição, valor, pagador e participantes.');
-        let comprovante_url = null;
-        const file = $('#fExpenseProof').files[0];
-        if(file) comprovante_url = await uploadFile('documentos', file, `${state.currentTrip.id}/expenses/${Date.now()}_${file.name}`);
-        const {data,error} = await state.supabase.from('expenses').insert({
-          trip_id:state.currentTrip.id, descricao:$('#fExpenseDesc').value.trim(), valor:val, data:$('#fExpenseDate').value || new Date().toISOString().slice(0,10),
-          categoria:$('#fExpenseCategory').value.trim(), comprovante_url, pago_por:$('#fExpensePayer').value
-        }).select().single();
-        if(error) return showToast(error.message);
-        const quota = Number((val / splitIds.length).toFixed(2));
-        const splits = splitIds.map(id=>({expense_id:data.id, member_id:id, valor_dividido:quota}));
-        const ins = await state.supabase.from('expense_splits').insert(splits);
-        if(ins.error) return showToast(ins.error.message);
-        await refreshAll(); renderApp();
+
+        const payload = {
+          trip_id: state.currentTrip.id,
+          descricao: $('#fExpenseDesc').value.trim(),
+          valor: val,
+          data: $('#fExpenseDate').value || new Date().toISOString().slice(0,10),
+          categoria: $('#fExpenseCategory').value.trim(),
+          pago_por: $('#fExpensePayer').value
+        };
+
+        const fileInput = $('#fExpenseProof');
+        const file = fileInput && fileInput.files ? fileInput.files[0] : null;
+        if(file){
+          const uploadedUrl = await uploadFile('documentos', file, `${state.currentTrip.id}/expenses/${Date.now()}_${file.name}`);
+          if(!uploadedUrl) return showToast('Não foi possível enviar o comprovante. Você pode salvar o gasto sem comprovante ou tentar novamente.');
+          payload.comprovante_url = uploadedUrl;
+        }
+
+        const expenseInsert = await state.supabase.from('expenses').insert(payload).select('id').single();
+        if(expenseInsert.error || !expenseInsert.data?.id){
+          return showToast(expenseInsert.error?.message || 'Não foi possível salvar o gasto.');
+        }
+
+        const total = Math.round(val * 100);
+        const base = Math.floor(total / splitIds.length);
+        let remainder = total - (base * splitIds.length);
+        const splits = splitIds.map(id=>{
+          const extra = remainder > 0 ? 1 : 0;
+          if(remainder > 0) remainder--;
+          return {
+            expense_id: expenseInsert.data.id,
+            member_id: id,
+            valor_dividido: Number(((base + extra) / 100).toFixed(2))
+          };
+        });
+
+        const splitInsert = await state.supabase.from('expense_splits').insert(splits);
+        if(splitInsert.error){
+          await state.supabase.from('expenses').delete().eq('id', expenseInsert.data.id);
+          return showToast(splitInsert.error.message || 'Não foi possível salvar a divisão do gasto.');
+        }
+
+        $('#fExpenseDesc').value = '';
+        $('#fExpenseValue').value = '';
+        $('#fExpenseDate').value = '';
+        $('#fExpensePayer').value = '';
+        $('#fExpenseCategory').value = '';
+        if(fileInput) fileInput.value = '';
+        document.querySelectorAll('input[name="expenseSplit"]').forEach(i=> i.checked = false);
+
+        await refreshAll();
+        renderApp();
+        showToast('Gasto salvo com sucesso.');
       };
       card.append(form, btn, el('div','divider'));
 
@@ -1186,8 +1346,8 @@ END:VCALENDAR`;
             <button class="btn secondary small">Editar documentos</button>
           </div>
           <div class="split" style="margin-top:12px">
-            <div><div class="fine">CPF</div><div class="media-box">${m.cpf_file_url ? `<iframe class="viewer-iframe" src="${m.cpf_file_url}"></iframe>` : 'CPF não enviado.'}</div></div>
-            <div><div class="fine">RG</div><div class="media-box">${m.rg_file_url ? `<iframe class="viewer-iframe" src="${m.rg_file_url}"></iframe>` : 'RG não enviado.'}</div></div>
+            <div><div class="fine">CPF</div><div class="inline-actions" style="margin:8px 0">${renderOpenOriginal(m.cpf_file_url)}</div><div class="media-box">${m.cpf_file_url ? `<iframe class="viewer-iframe" src="${m.cpf_file_url}"></iframe>` : 'CPF não enviado.'}</div></div>
+            <div><div class="fine">RG</div><div class="inline-actions" style="margin:8px 0">${renderOpenOriginal(m.rg_file_url)}</div><div class="media-box">${m.rg_file_url ? `<iframe class="viewer-iframe" src="${m.rg_file_url}"></iframe>` : 'RG não enviado.'}</div></div>
           </div>`;
         item.querySelector('button').onclick = ()=> openMemberDocsEditor(m);
         list.appendChild(item);
@@ -1224,11 +1384,12 @@ END:VCALENDAR`;
       const top = el('div','form-grid');
       top.innerHTML = `
         <div class="field"><label>Descrição</label><input id="fGalleryDesc" placeholder="Chegada no aeroporto"></div>
-        <div class="field"><label>Imagem</label><input id="fGalleryFile" type="file" accept="image/*" capture="environment"></div>
+        <div class="field"><label>Tirar foto</label><input id="fGalleryCamera" type="file" accept="image/*" capture="environment"></div>
+        <div class="field" style="grid-column:1/-1"><label>Escolher da galeria / arquivos</label><input id="fGalleryFile" type="file" accept="image/*"></div>
       `;
-      const btn = el('button','btn','Enviar foto');
+      const btn = el('button','btn','Salvar foto');
       btn.onclick = async ()=>{
-        const file = $('#fGalleryFile').files[0];
+        const file = $('#fGalleryCamera').files[0] || $('#fGalleryFile').files[0];
         if(!file) return showToast('Selecione uma imagem.');
         const url = await uploadFile('galeria', file, `${state.currentTrip.id}/gallery/${Date.now()}_${file.name}`, true);
         if(!url) return;
@@ -1240,7 +1401,7 @@ END:VCALENDAR`;
           uploaded_by_member_id: uploader?.id || null
         });
         if(error) return showToast(error.message);
-        $('#fGalleryDesc').value=''; $('#fGalleryFile').value='';
+        $('#fGalleryDesc').value=''; $('#fGalleryFile').value=''; $('#fGalleryCamera').value='';
         await refreshAll(); renderApp();
       };
       card.append(top, btn, el('div','divider'));
@@ -1255,7 +1416,7 @@ END:VCALENDAR`;
           <div style="margin-top:8px"><b>${escapeHtml(g.descricao || 'Sem descrição')}</b></div>
           <div class="fine">${escapeHtml(sender?.name || 'Participante')} • ${formatDate(g.created_at)}</div>
           <div class="inline-actions">
-            <a class="btn secondary small" href="${g.url}" download>Baixar</a>
+            <a class="btn secondary small" href="${g.url}" download>Salvar foto</a>
             ${canDelete ? '<button class="btn danger small">Excluir</button>' : ''}
           </div>`;
         if(canDelete) box.querySelector('button').onclick = async ()=>{
@@ -1374,7 +1535,7 @@ END:VCALENDAR`;
               <b>${escapeHtml(m.name)}</b>
               <div class="fine">Família: ${escapeHtml(state.currentFamily.name)}</div>
               <div class="divider"></div>
-              <div>Contato emergência: <b>${escapeHtml(m.emergencia_nome || '-')}</b> ${escapeHtml(m.emergencia_fone || '')}</div>
+              <div>Contato emergência: <b>${escapeHtml(m.emergencia_nome || '-')}</b> ${escapeHtml(m.emergencia_fone || '')}</div><div class="inline-actions">${renderWhatsApp(m.emergencia_fone,'WhatsApp emergência')}</div>
               <div style="margin-top:6px">Informações médicas: <b>${escapeHtml(m.info_medica || '-')}</b></div>
             </div>`).join('') || '<div class="empty">Cadastre ao menos um membro para usar a tela SOS.</div>'}
         </div>
