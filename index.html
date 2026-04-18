@@ -48,23 +48,32 @@ let usuario = null;
 let viagemAtual = null;
 let familiaAtual = null;
 let sessaoValida = false;
-let atracaoSelecionada = null;
 let atracaoSelecionadaId = null;
 
 init();
 async function init(){
+  console.log('Iniciando app...');
+  const timeout = setTimeout(()=>{
+    console.log('Timeout - mostrando login');
+    mostrarLogin();
+  }, 3000);
+  
   try {
-    const {data:{session}} = await supabase.auth.getSession();
+    const {data:{session}} = await supabaseClient.auth.getSession();
+    clearTimeout(timeout);
     if(session){ 
+      console.log('Sessão encontrada');
       usuario = session.user; 
       await verificarSessaoFamilia(); 
       await carregarApp(); 
     } else { 
+      console.log('Sem sessão - login');
       mostrarLogin(); 
     }
   } catch(e) {
-    console.error(e);
-    document.getElementById('app').innerHTML = '<div class="content"><div class="card"><h2>Erro ao conectar</h2><p>Verifique sua conexão e se o Supabase está configurado.</p><p>'+e.message+'</p></div></div>';
+    console.error('Erro init:', e);
+    clearTimeout(timeout);
+    mostrarLogin();
   }
 }
 
@@ -82,6 +91,7 @@ async function verificarSessaoFamilia(){
 }
 
 function mostrarLogin(){
+  console.log('Renderizando login');
   document.getElementById('app').innerHTML = `
     <div class="content">
       <div class="card">
@@ -112,16 +122,16 @@ function mostrarCadastro(){
 async function fazerCadastro(){
   const email = document.getElementById('emailCad').value;
   const senha = document.getElementById('senhaCad').value;
-  const {data, error} = await supabase.auth.signUp({email, password: senha});
+  const {data, error} = await supabaseClient.auth.signUp({email, password: senha});
   if(error) return alert('Erro: ' + error.message);
-  alert('Conta criada! Verifique seu email se necessário, depois faça login.');
+  alert('Conta criada! Faça login.');
   mostrarLogin();
 }
 
 async function fazerLogin(){
   const email = document.getElementById('email').value;
   const senha = document.getElementById('senha').value;
-  const {data, error} = await supabase.auth.signInWithPassword({email, password: senha});
+  const {data, error} = await supabaseClient.auth.signInWithPassword({email, password: senha});
   if(error) return alert('Erro: ' + error.message);
   usuario = data.user;
   await carregarApp();
@@ -129,17 +139,22 @@ async function fazerLogin(){
 
 async function carregarApp(){
   document.getElementById('app').innerHTML = '<div class="loading">Carregando viagem...</div>';
-  const {data: viagens} = await supabase.from('trips').select('*').is('deleted_at', null).limit(1);
-  if(!viagens || viagens.length === 0){ 
-    mostrarCriarViagem(); 
-    return; 
-  }
-  viagemAtual = viagens[0];
-  
-  if(!sessaoValida){ 
-    await mostrarSelecaoFamilia(); 
-  } else { 
-    mostrarAbas(); 
+  try {
+    const {data: viagens, error} = await supabaseClient.from('trips').select('*').is('deleted_at', null).limit(1);
+    if(error) throw error;
+    if(!viagens || viagens.length === 0){ 
+      mostrarCriarViagem(); 
+      return; 
+    }
+    viagemAtual = viagens[0];
+    if(!sessaoValida){ 
+      await mostrarSelecaoFamilia(); 
+    } else { 
+      mostrarAbas(); 
+    }
+  } catch(e) {
+    console.error('Erro carregarApp:', e);
+    document.getElementById('app').innerHTML = `<div class="content"><div class="card"><h2>Erro</h2><p>${e.message}</p><p>Já rodou o SQL no Supabase?</p><button class="btn" onclick="mostrarLogin()">Voltar</button></div></div>`;
   }
 }
 
@@ -161,7 +176,7 @@ async function criarViagem(){
   const nome = document.getElementById('viagemNome').value;
   const inicio = document.getElementById('viagemInicio').value;
   const fim = document.getElementById('viagemFim').value;
-  const {data, error} = await supabase.from('trips').insert({
+  const {data, error} = await supabaseClient.from('trips').insert({
     name: nome, start_date: inicio, end_date: fim, admin_id: usuario.id
   }).select().single();
   if(error) return alert('Erro: ' + error.message);
@@ -171,7 +186,7 @@ async function criarViagem(){
 }
 
 async function mostrarSelecaoFamilia(){
-  const {data: familias} = await supabase.from('families').select('*').eq('trip_id', viagemAtual.id);
+  const {data: familias} = await supabaseClient.from('families').select('*').eq('trip_id', viagemAtual.id);
   let html = '<div class="content"><div class="card"><h2>Selecione sua família</h2>';
   if(familias && familias.length > 0){
     familias.forEach(f=>{
@@ -199,9 +214,9 @@ function mostrarCriarFamilia(){
 async function criarFamilia(){
   const nome = document.getElementById('famNome').value;
   const pin = document.getElementById('famPin').value;
-  if(pin.length !== 4) return alert('PIN deve ter 4 dígitos');
-  const pinHash = btoa(pin); // Simples pra demo, usa bcrypt em prod
-  const {data, error} = await supabase.from('families').insert({
+  if(pin.length!== 4) return alert('PIN deve ter 4 dígitos');
+  const pinHash = btoa(pin);
+  const {data, error} = await supabaseClient.from('families').insert({
     trip_id: viagemAtual.id, name: nome, pin_hash: pinHash, created_by: usuario.id
   }).select().single();
   if(error) return alert('Erro: ' + error.message);
@@ -211,8 +226,8 @@ async function criarFamilia(){
 async function entrarFamilia(familiaId, familiaNome){
   const pin = prompt('Digite o PIN da família ' + familiaNome);
   if(!pin) return;
-  const {data: fam} = await supabase.from('families').select('*').eq('id', familiaId).single();
-  if(btoa(pin) !== fam.pin_hash) return alert('PIN incorreto');
+  const {data: fam} = await supabaseClient.from('families').select('*').eq('id', familiaId).single();
+  if(btoa(pin)!== fam.pin_hash) return alert('PIN incorreto');
   familiaAtual = fam;
   sessaoValida = true;
   localStorage.setItem('familia_sessao', JSON.stringify({
@@ -249,7 +264,7 @@ async function aba(nome, el){
 }
 
 async function carregarParques(){
-  const {data: atracoes} = await supabase.from('public_attraction_summary').select('*').eq('trip_id', viagemAtual.id);
+  const {data: atracoes} = await supabaseClient.from('public_attraction_summary').select('*').eq('trip_id', viagemAtual.id);
   const agrupado = {};
   atracoes?.forEach(a=>{ 
     if(!agrupado[a.attraction_id]) agrupado[a.attraction_id] = {id: a.attraction_id, nome: a.nome, data: a.data, horario: a.horario, local: a.local, familias: []}; 
@@ -273,7 +288,7 @@ async function salvarNovaAtracao(){
   const data = document.getElementById('atrData').value;
   const hora = document.getElementById('atrHora').value;
   const local = document.getElementById('atrLocal').value;
-  const {error} = await supabase.from('attractions').insert({
+  const {error} = await supabaseClient.from('attractions').insert({
     trip_id: viagemAtual.id, nome, data, horario: hora, local, created_by: usuario.id
   });
   if(error) return alert('Erro: ' + error.message);
@@ -284,9 +299,8 @@ async function salvarNovaAtracao(){
 
 async function participarAtracao(atracaoId, nomeAtracao){
   atracaoSelecionadaId = atracaoId;
-  atracaoSelecionada = nomeAtracao;
   document.getElementById('tituloParticipar').textContent = nomeAtracao;
-  const {data: membros} = await supabase.from('members').select('*').eq('family_id', familiaAtual.id);
+  const {data: membros} = await supabaseClient.from('members').select('*').eq('family_id', familiaAtual.id);
   if(!membros || membros.length === 0) return alert('Cadastre membros da família primeiro na aba Documentos');
   let html = '<p>Selecione quem vai:</p>';
   membros.forEach(m=>{ 
@@ -297,10 +311,10 @@ async function participarAtracao(atracaoId, nomeAtracao){
 }
 
 async function salvarParticipacao(){ 
-  const {data: membros} = await supabase.from('members').select('*').eq('family_id', familiaAtual.id);
+  const {data: membros} = await supabaseClient.from('members').select('*').eq('family_id', familiaAtual.id);
   const selecionados = membros.filter(m => document.getElementById('mem_'+m.id).checked);
   for(const m of selecionados){
-    await supabase.from('attraction_tickets').upsert({
+    await supabaseClient.from('attraction_tickets').upsert({
       attraction_id: atracaoSelecionadaId, member_id: m.id
     });
   }
@@ -310,7 +324,7 @@ async function salvarParticipacao(){
 }
 
 async function carregarAlarmes(){
-  const {data: alarmes} = await supabase.from('alarms').select('*').eq('trip_id', viagemAtual.id).order('data_hora');
+  const {data: alarmes} = await supabaseClient.from('alarms').select('*').eq('trip_id', viagemAtual.id).order('data_hora');
   let html = '<h2>🔔 Alarmes</h2>';
   if(!alarmes || alarmes.length === 0) html += '<div class="card"><p>Nenhum alarme ativo. Crie uma atração com horário.</p></div>';
   alarmes?.forEach(a=>{
@@ -322,7 +336,7 @@ async function carregarAlarmes(){
 
 async function abrirSOS(){
   if(!sessaoValida) return alert('Faça login na família primeiro');
-  const {data: membros} = await supabase.from('members').select('*').eq('family_id', familiaAtual.id).limit(1);
+  const {data: membros} = await supabaseClient.from('members').select('*').eq('family_id', familiaAtual.id).limit(1);
   if(!membros || membros.length === 0) return alert('Cadastre membros na aba Documentos primeiro');
   const eu = membros[0];
   document.getElementById('dadosSOS').innerHTML = `
