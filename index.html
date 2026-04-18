@@ -1,12 +1,13 @@
 
 <!DOCTYPE html>
+
 <html lang="pt-BR">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Viagem em Grupo - Supabase</title>
-  <meta name="theme-color" content="#2563eb" />
-  <style>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Viagem em Grupo - Supabase</title>
+<meta content="#2563eb" name="theme-color"/>
+<style>
     :root{
       --blue:#2563eb;
       --blue-2:#1d4ed8;
@@ -133,138 +134,128 @@
   </style>
 </head>
 <body>
-  <div class="app-shell">
-    <div class="topbar">
-      <div class="brand">
-        <div class="brand-badge">VG</div>
-        <div>
-          <div style="font-weight:800">Viagem em Grupo</div>
-          <div class="muted" id="topTripLabel">Conecte ao Supabase e entre em uma viagem</div>
-        </div>
-      </div>
-      <div class="row">
-        <span class="pill" id="familyBadge">Sem família ativa</span>
-        <button class="btn secondary small" id="btnOpenFamilyModal">Minha família</button>
-        <button class="btn secondary small" id="btnLogout">Sair</button>
-      </div>
-    </div>
-
-    <section id="screenHome">
-      <div class="hero">
-        <div class="card">
-          <div class="pill">Azul, branco e cinza</div>
-          <h1 style="margin-top:10px;font-size:32px">Organize viagens em grupo com famílias, documentos, voos, hospedagem, parques e rateios</h1>
-          <p class="muted" style="margin:10px 0 18px">
+<div class="app-shell">
+<div class="topbar">
+<div class="brand">
+<div class="brand-badge">VG</div>
+<div>
+<div style="font-weight:800">Viagem em Grupo</div>
+<div class="muted" id="topTripLabel">Conecte ao Supabase e entre em uma viagem</div>
+</div>
+</div>
+<div class="row">
+<span class="pill" id="familyBadge">Sem família ativa</span>
+<button class="btn secondary small" id="btnOpenFamilyModal">Minha família</button>
+<button class="btn secondary small" id="btnLogout">Sair</button>
+</div>
+</div>
+<section id="screenHome">
+<div class="hero">
+<div class="card">
+<div class="pill">Azul, branco e cinza</div>
+<h1 style="margin-top:10px;font-size:32px">Organize viagens em grupo com famílias, documentos, voos, hospedagem, parques e rateios</h1>
+<p class="muted" style="margin:10px 0 18px">
             HTML único com Supabase, pensado para o fluxo que está no seu documento: viagem pública para todos, documentos privados por família com PIN, galeria compartilhada, roteiro editável, transporte, alarmes e rateios.
           </p>
-          <div class="auth-note">
+<div class="auth-note">
             Antes de usar, edite no topo do arquivo as constantes <b>SUPABASE_URL</b> e <b>SUPABASE_ANON_KEY</b>. Depois, rode o SQL que você enviou no Supabase.
           </div>
-          <div class="btn-row" style="margin-top:16px">
-            <button class="btn" id="btnShowCreate">Criar nova viagem</button>
-            <button class="btn secondary" id="btnShowJoin">Entrar com código</button>
-          </div>
-        </div>
-        <div class="card">
-          <h3>O que já está ligado ao seu escopo</h3>
-          <div class="list" style="margin-top:12px">
-            <div class="item"><b>12 abas</b><div class="fine">Roteiro, Transporte, Hospedagem, Voos, Parques, Atrações, Alarmes, Rateios, Chat, Ponto de Encontro, Documentos, Galeria</div></div>
-            <div class="item"><b>Privacidade por família</b><div class="fine">PIN da família para documentos sensíveis</div></div>
-            <div class="item"><b>Fluxo por contexto</b><div class="fine">Na aba Voos mostra passagem + CPF; na aba Parques mostra ingresso + CPF; na aba Hospedagem mostra voucher + documentos do grupo hospedado</div></div>
-          </div>
-        </div>
-      </div>
-
-      <div class="grid grid-2" style="margin-top:18px">
-        <div class="card hidden" id="cardCreateTrip">
-          <div class="section-header">
-            <div>
-              <h3>Criar nova viagem</h3>
-              <div class="muted">Gera um código automático para convite no WhatsApp.</div>
-            </div>
-          </div>
-          <div class="form-grid">
-            <div class="field"><label>Nome da viagem</label><input id="createTripName" placeholder="Ex.: 15 anos da Isa - Beto Carrero 2026"></div>
-            <div class="field"><label>Orçamento previsto</label><input id="createTripBudget" type="number" step="0.01" placeholder="0,00"></div>
-            <div class="field"><label>Data inicial</label><input id="createTripStart" type="date"></div>
-            <div class="field"><label>Data final</label><input id="createTripEnd" type="date"></div>
-          </div>
-          <div class="btn-row" style="margin-top:14px">
-            <button class="btn" id="btnCreateTrip">Criar viagem</button>
-            <button class="btn secondary" id="btnCancelCreate">Cancelar</button>
-          </div>
-        </div>
-
-        <div class="card hidden" id="cardJoinTrip">
-          <div class="section-header">
-            <div>
-              <h3>Entrar com código</h3>
-              <div class="muted">Use o código que o grupo compartilhou.</div>
-            </div>
-          </div>
-          <div class="field">
-            <label>Código da viagem</label>
-            <input id="joinTripCode" placeholder="Ex.: ISA15B">
-          </div>
-          <div class="btn-row" style="margin-top:14px">
-            <button class="btn" id="btnJoinTrip">Entrar</button>
-            <button class="btn secondary" id="btnCancelJoin">Cancelar</button>
-          </div>
-        </div>
-
-        <div class="card" id="cardRecentTrips">
-          <div class="section-header">
-            <div>
-              <h3>Minhas viagens recentes</h3>
-              <div class="muted">Salvas localmente neste navegador.</div>
-            </div>
-          </div>
-          <div id="recentTrips" class="list"></div>
-        </div>
-      </div>
-    </section>
-
-    <section id="screenApp" class="hidden">
-      <div class="card" style="padding:18px">
-        <div class="section-header">
-          <div>
-            <div class="pill">Viagem ativa</div>
-            <h2 id="tripTitle" style="margin-top:8px">-</h2>
-            <div class="muted" id="tripDates">-</div>
-          </div>
-          <div class="row">
-            <div>
-              <div class="fine">Código</div>
-              <div class="code-badge" id="tripCode">------</div>
-            </div>
-            <div class="btn-row">
-              <button class="btn secondary small" id="btnInvite">Convidar no WhatsApp</button>
-              <button class="btn secondary small" id="btnCopyCode">Copiar código</button>
-            </div>
-          </div>
-        </div>
-
-        <div class="stats">
-          <div class="stat"><div class="fine">Famílias</div><div class="kpi" id="kpiFamilies">0</div></div>
-          <div class="stat"><div class="fine">Membros</div><div class="kpi" id="kpiMembers">0</div></div>
-          <div class="stat"><div class="fine">Translados</div><div class="kpi" id="kpiTransfers">0</div></div>
-          <div class="stat"><div class="fine">Gasto total</div><div class="kpi" id="kpiExpenses">R$ 0</div></div>
-        </div>
-      </div>
-
-      <div class="tabs" id="tabs"></div>
-      <div id="tabContent"></div>
-    </section>
-  </div>
-
-  <button class="sos hidden" id="btnSOS">🚨 SOS</button>
-
-  <div class="modal" id="modalGeneric">
-    <div class="modal-card" id="modalContent"></div>
-  </div>
-
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script>
+<div class="btn-row" style="margin-top:16px">
+<button class="btn" id="btnShowCreate">Criar nova viagem</button>
+<button class="btn secondary" id="btnShowJoin">Entrar com código</button>
+</div>
+</div>
+<div class="card">
+<h3>O que já está ligado ao seu escopo</h3>
+<div class="list" style="margin-top:12px">
+<div class="item"><b>12 abas</b><div class="fine">Roteiro, Transporte, Hospedagem, Voos, Parques, Atrações, Alarmes, Rateios, Chat, Ponto de Encontro, Documentos, Galeria</div></div>
+<div class="item"><b>Privacidade por família</b><div class="fine">PIN da família para documentos sensíveis</div></div>
+<div class="item"><b>Fluxo por contexto</b><div class="fine">Na aba Voos mostra passagem + CPF; na aba Parques mostra ingresso + CPF; na aba Hospedagem mostra voucher + documentos do grupo hospedado</div></div>
+</div>
+</div>
+</div>
+<div class="grid grid-2" style="margin-top:18px">
+<div class="card hidden" id="cardCreateTrip">
+<div class="section-header">
+<div>
+<h3>Criar nova viagem</h3>
+<div class="muted">Gera um código automático para convite no WhatsApp.</div>
+</div>
+</div>
+<div class="form-grid">
+<div class="field"><label>Nome da viagem</label><input id="createTripName" placeholder="Ex.: 15 anos da Isa - Beto Carrero 2026"/></div>
+<div class="field"><label>Orçamento previsto</label><input id="createTripBudget" placeholder="0,00" step="0.01" type="number"/></div>
+<div class="field"><label>Data inicial</label><input id="createTripStart" type="date"/></div>
+<div class="field"><label>Data final</label><input id="createTripEnd" type="date"/></div>
+</div>
+<div class="btn-row" style="margin-top:14px">
+<button class="btn" id="btnCreateTrip">Criar viagem</button>
+<button class="btn secondary" id="btnCancelCreate">Cancelar</button>
+</div>
+</div>
+<div class="card hidden" id="cardJoinTrip">
+<div class="section-header">
+<div>
+<h3>Entrar com código</h3>
+<div class="muted">Use o código que o grupo compartilhou.</div>
+</div>
+</div>
+<div class="field">
+<label>Código da viagem</label>
+<input id="joinTripCode" placeholder="Ex.: ISA15B"/>
+</div>
+<div class="btn-row" style="margin-top:14px">
+<button class="btn" id="btnJoinTrip">Entrar</button>
+<button class="btn secondary" id="btnCancelJoin">Cancelar</button>
+</div>
+</div>
+<div class="card" id="cardRecentTrips">
+<div class="section-header">
+<div>
+<h3>Minhas viagens recentes</h3>
+<div class="muted">Salvas localmente neste navegador.</div>
+</div>
+</div>
+<div class="list" id="recentTrips"></div>
+</div>
+</div>
+</section>
+<section class="hidden" id="screenApp">
+<div class="card" style="padding:18px">
+<div class="section-header">
+<div>
+<div class="pill">Viagem ativa</div>
+<h2 id="tripTitle" style="margin-top:8px">-</h2>
+<div class="muted" id="tripDates">-</div>
+</div>
+<div class="row">
+<div>
+<div class="fine">Código</div>
+<div class="code-badge" id="tripCode">------</div>
+</div>
+<div class="btn-row">
+<button class="btn secondary small" id="btnInvite">Convidar no WhatsApp</button>
+<button class="btn secondary small" id="btnCopyCode">Copiar código</button>
+</div>
+</div>
+</div>
+<div class="stats">
+<div class="stat"><div class="fine">Famílias</div><div class="kpi" id="kpiFamilies">0</div></div>
+<div class="stat"><div class="fine">Membros</div><div class="kpi" id="kpiMembers">0</div></div>
+<div class="stat"><div class="fine">Translados</div><div class="kpi" id="kpiTransfers">0</div></div>
+<div class="stat"><div class="fine">Gasto total</div><div class="kpi" id="kpiExpenses">R$ 0</div></div>
+</div>
+</div>
+<div class="tabs" id="tabs"></div>
+<div id="tabContent"></div>
+</section>
+</div>
+<button class="sos hidden" id="btnSOS">🚨 SOS</button>
+<div class="modal" id="modalGeneric">
+<div class="modal-card" id="modalContent"></div>
+</div>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
     const SUPABASE_URL = 'https://cfvipeilwbeppqxvqpid.supabase.co';
     const SUPABASE_ANON_KEY = 'sb_publishable_gt9MVCBDhyHkLxmrMZnDjw_lKnogqS4';
 
@@ -947,7 +938,7 @@
       $('#btnSaveFlightTicket').onclick = ()=> saveFlightTicket(flightId, memberId, $('#uploadFlightTicket').files[0], ticket?.localizador || '');
     }
 
-    async async function saveFlightTicket(flightId, memberId, file, localizador=''){
+    async function saveFlightTicket(flightId, memberId, file, localizador=''){
       const existing = ticketForFlight(flightId, memberId);
       let url = existing?.ticket_url || '';
       if(file){
@@ -1037,7 +1028,7 @@
       $('#btnSaveParkTicket').onclick = ()=> saveParkTicket(parkId, memberId, $('#uploadParkTicket').files[0]);
     }
 
-    async async function saveParkTicket(parkId, memberId, file){
+    async function saveParkTicket(parkId, memberId, file){
       if(!file) return showToast('Selecione um arquivo.');
       const url = await uploadFile('tickets', file, `${state.currentTrip.id}/parks/${parkId}/${memberId}_${Date.now()}_${file.name}`);
       if(!url) return;
@@ -1121,7 +1112,7 @@
       $('#btnSaveAttrTicket').onclick = ()=> saveAttractionTicket(attractionId, memberId, $('#uploadAttrTicket').files[0]);
     }
 
-    async async function saveAttractionTicket(attractionId, memberId, file){
+    async function saveAttractionTicket(attractionId, memberId, file){
       if(!file) return showToast('Selecione um arquivo.');
       const url = await uploadFile('tickets', file, `${state.currentTrip.id}/attractions/${attractionId}/${memberId}_${Date.now()}_${file.name}`);
       if(!url) return;
