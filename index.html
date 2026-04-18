@@ -3,81 +3,217 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>DIAGNÓSTICO - Viagem da Isa</title>
+  <title>Viagem da Isa - Beto Carrero 2026</title>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <style>
-    body{font-family:monospace;background:#000;color:#0f0;padding:20px;font-size:14px}
-    .erro{background:#300;color:#f00;padding:10px;margin:10px 0}
-    .ok{background:#030;color:#0f0;padding:10px;margin:10px 0}
-    .info{background:#003;color:#0af;padding:10px;margin:10px 0}
-    button{background:#333;color:#fff;border:1px solid #666;padding:10px;cursor:pointer;margin:5px}
-    pre{white-space:pre-wrap;word-wrap:break-word}
+    *{margin:0;padding:0;box-sizing:border-box}
+    body{font-family:system-ui;background:#0f172a;color:#e2e8f0;padding-bottom:80px}
+   .header{background:#1e293b;padding:16px;position:sticky;top:0;z-index:10}
+   .header-top{display:flex;justify-content:space-between;align-items:center}
+   .nome-viagem{font-weight:bold;font-size:18px}
+   .codigo-viagem{background:#334155;padding:6px 12px;border-radius:6px;font-family:monospace;font-size:16px;letter-spacing:2px}
+   .tela{padding:20px;display:none}
+   .tela.ativa{display:block}
+   .btn{background:#3b82f6;color:white;border:none;padding:14px;border-radius:8px;cursor:pointer;width:100%;font-size:16px;margin:8px 0}
+   .btn-verde{background:#16a34a}
+   .btn-vermelho{background:#dc2626}
+   .btn-cinza{background:#475569}
+    input{width:100%;padding:12px;margin:8px 0;background:#334155;border:1px solid #475569;color:white;border-radius:6px;font-size:16px}
+   .card{background:#1e293b;padding:16px;border-radius:8px;margin:12px 0}
+   .tabs{display:flex;overflow-x:auto;background:#1e293b;position:fixed;bottom:0;left:0;right:0}
+   .tab{padding:12px 16px;cursor:pointer;white-space:nowrap;font-size:14px}
+   .tab.ativo{background:#334155;border-top:2px solid #3b82f6}
+   .sos{position:fixed;bottom:80px;right:20px;background:#dc2626;color:white;border:none;border-radius:50%;width:60px;height:60px;font-size:24px;cursor:pointer}
+   .codigo-grande{font-size:36px;text-align:center;padding:20px;background:#334155;border-radius:8px;letter-spacing:6px;font-weight:bold;margin:16px 0}
+   .hidden{display:none}
+   .loading{text-align:center;padding:20px;color:#94a3b8}
+   .erro{background:#7f1d1d;padding:12px;border-radius:6px;margin:8px 0;color:#fecaca}
   </style>
 </head>
 <body>
-  <h1>DIAGNÓSTICO DO SUPABASE</h1>
-  <div id="log"></div>
-  <button onclick="testarTudo()">RODAR TESTE COMPLETO</button>
+  <div class="header">
+    <div class="header-top">
+      <div class="nome-viagem" id="nomeViagemHeader">Viagem da Isa</div>
+      <div class="codigo-viagem hidden" id="codigoHeader">------</div>
+    </div>
+  </div>
 
-  <script>
-    const SUPABASE_URL = 'https://cfvipeilwbeppqxvqpid.supabase.co';
-    const SUPABASE_KEY = 'sb_publishable_gt9MVCBDhyHkLxmrMZnDjw_lKnogqS4';
-    // MUDEI O NOME PRA 'sb' PRA NÃO DAR CONFLITO
-    const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-    
-    function log(msg, tipo = 'info') {
-      const div = document.createElement('div');
-      div.className = tipo;
-      div.innerHTML = '<pre>' + msg + '</pre>';
-      document.getElementById('log').appendChild(div);
-    }
+  <div id="login" class="tela ativa">
+    <div id="statusConexao" class="loading">Conectando...</div>
+    <div id="erroLogin" class="erro hidden"></div>
+    <div class="card">
+      <h2>Entrar na Viagem</h2>
+      <p>Digite o código que recebeu no WhatsApp</p>
+      <input id="inputCodigoLogin" placeholder="CÓDIGO DA VIAGEM" maxlength="6" style="text-transform:uppercase">
+      <button class="btn" onclick="entrarComCodigo()">Entrar</button>
+    </div>
+    <div class="card">
+      <p style="text-align:center;color:#94a3b8">Vai criar uma viagem nova?</p>
+      <button class="btn btn-cinza" onclick="mostrarTela('criar')">Criar Nova Viagem</button>
+    </div>
+  </div>
 
-    async function testarTudo() {
-      document.getElementById('log').innerHTML = '';
-      log('1. URL: ' + SUPABASE_URL);
-      log('2. KEY: ' + SUPABASE_KEY.substring(0,20) + '...');
-      
-      log('\n3. TESTANDO LOGIN ANÔNIMO...');
-      const { data: authData, error: authError } = await sb.auth.signInAnonymously();
-      if (authError) {
-        log('ERRO NO LOGIN ANÔNIMO: ' + JSON.stringify(authError, null, 2), 'erro');
-        log('SOLUÇÃO: Supabase > Authentication > Providers > Ativa "Anonymous"', 'erro');
-        return;
-      }
-      log('LOGIN ANÔNIMO OK. User ID: ' + authData.user.id, 'ok');
+  <div id="criar" class="tela">
+    <div id="erroCriar" class="erro hidden"></div>
+    <div class="card">
+      <h3>Criar Nova Viagem</h3>
+      <input id="nomeViagem" placeholder="Nome da viagem" value="15 anos da Isa - Beto Carrero 2026">
+      <input id="dataInicio" type="date" value="2026-04-19">
+      <input id="dataFim" type="date" value="2026-04-25">
+      <button class="btn" onclick="criarViagem()">Criar e Gerar Código</button>
+      <div id="msgCriar" class="loading hidden">Criando...</div>
+    </div>
+    <button class="btn btn-cinza" onclick="mostrarTela('login')">Voltar</button>
+  </div>
 
-      log('\n4. TESTANDO LEITURA DA TABELA trips...');
-      const { data: readData, error: readError } = await sb.from('trips').select('*').limit(1);
-      if (readError) {
-        log('ERRO AO LER trips: ' + JSON.stringify(readError, null, 2), 'erro');
-        log('SOLUÇÃO: Roda o SQL de novo. Tabela não existe ou RLS bloqueando.', 'erro');
-        return;
-      }
-      log('LEITURA OK. Encontrados: ' + readData.length + ' registros', 'ok');
+  <div id="codigoGerado" class="tela">
+    <div class="card">
+      <h3>Viagem criada!</h3>
+      <p>Seu código:</p>
+      <div class="codigo-grande" id="codigoTrip"></div>
+      <p style="text-align:center;color:#94a3b8">Esse código fica sempre visível no topo da tela</p>
+    </div>
+    <button class="btn btn-verde" onclick="copiarLinkWhatsApp()">Copiar Link pro WhatsApp</button>
+    <button class="btn" onclick="irParaViagem()">Entrar na Viagem</button>
+  </div>
 
-      log('\n5. TESTANDO CRIAR VIAGEM...');
-      const codigo = 'TEST' + Math.random().toString(36).substring(2, 6).toUpperCase();
-      const { data: insertData, error: insertError } = await sb.from('trips').insert({
-        name: 'Viagem Teste Diagnóstico',
-        code: codigo,
-        start_date: '2026-04-19',
-        end_date: '2026-04-25'
-      }).select().single();
+  <div id="viagem" class="tela">
+    <div class="card">
+      <b>Você é o admin desta viagem</b>
+      <button class="btn btn-verde" onclick="copiarLinkWhatsApp()" style="margin-top:8px">Copiar Link pro WhatsApp</button>
+    </div>
 
-      if (insertError) {
-        log('ERRO AO CRIAR VIAGEM: ' + JSON.stringify(insertError, null, 2), 'erro');
-        if (insertError.code === '42501') {
-          log('ERRO 42501 = PERMISSION DENIED. O RLS tá bloqueando INSERT.', 'erro');
-          log('SOLUÇÃO: Roda o SQL com "create policy anon_all... using (true) with check (true)"', 'erro');
-        }
-        return;
-      }
-      log('CRIAÇÃO OK! Código gerado: ' + insertData.code, 'ok');
-      log('\nSE CHEGOU ATÉ AQUI, O BANCO TÁ 100%. O problema é no HTML do app.', 'ok');
-    }
+    <div id="conteudoAba" class="card">
+      <h3 id="nomeAba">Roteiro</h3>
+      <p id="textoAba">Carregando...</p>
+    </div>
 
-    // Roda sozinho quando abre
-    testarTudo();
-  </script>
+    <button class="sos" onclick="abrirSOS()">🚨</button>
+
+    <div class="tabs">
+      <div class="tab ativo" onclick="mudarAba('Roteiro')">Roteiro</div>
+      <div class="tab" onclick="mudarAba('Voos')">Voos</div>
+      <div class="tab" onclick="mudarAba('Hotel')">Hotel</div>
+      <div class="tab" onclick="mudarAba('Rateios')">Rateios</div>
+      <div class="tab" onclick="mudarAba('Chat')">Chat</div>
+      <div class="tab" onclick="mudarAba('SOS')">Emergência</div>
+    </div>
+  </div>
+
+<script>
+var sb = supabase.createClient(
+  'https://cfvipeilwbeppqxvqpid.supabase.co',
+  'sb_publishable_gt9MVCBDhyHkLxmrMZnDjw_lKnogqS4'
+);
+var viagemAtual = null;
+var codigoAtual = null;
+
+window.onload = async function() {
+  var status = document.getElementById('statusConexao');
+  var r = await sb.auth.signInAnonymously();
+  if (r.error) {
+    status.className = 'erro';
+    status.innerText = 'ERRO: ' + r.error.message;
+    return;
+  }
+  status.style.display = 'none';
+  var params = new URLSearchParams(window.location.search);
+  var cod = params.get('codigo');
+  if (cod) {
+    document.getElementById('inputCodigoLogin').value = cod;
+    entrarComCodigo();
+  }
+};
+
+function mostrarTela(id) {
+  var telas = document.querySelectorAll('.tela');
+  for (var i = 0; i < telas.length; i++) telas[i].classList.remove('ativa');
+  document.getElementById(id).classList.add('ativa');
+  document.getElementById('erroLogin').classList.add('hidden');
+  document.getElementById('erroCriar').classList.add('hidden');
+}
+
+function gerarCodigo() {
+  return Math.random().toString(36).substring(2, 8).toUpperCase();
+}
+
+async function criarViagem() {
+  document.getElementById('msgCriar').classList.remove('hidden');
+  document.getElementById('erroCriar').classList.add('hidden');
+  var nome = document.getElementById('nomeViagem').value;
+  var inicio = document.getElementById('dataInicio').value;
+  var fim = document.getElementById('dataFim').value;
+  var codigo = gerarCodigo();
+
+  var r = await sb.from('trips').insert({
+    name: nome, code: codigo, start_date: inicio, end_date: fim
+  }).select().single();
+
+  document.getElementById('msgCriar').classList.add('hidden');
+  if (r.error) {
+    document.getElementById('erroCriar').innerText = 'ERRO: ' + r.error.message;
+    document.getElementById('erroCriar').classList.remove('hidden');
+    return;
+  }
+
+  viagemAtual = r.data;
+  codigoAtual = codigo;
+  document.getElementById('codigoTrip').innerText = codigo;
+  mostrarTela('codigoGerado');
+}
+
+async function entrarComCodigo() {
+  var codigo = document.getElementById('inputCodigoLogin').value.toUpperCase().trim();
+  if (!codigo) {
+    document.getElementById('erroLogin').innerText = 'Digita o código primeiro';
+    document.getElementById('erroLogin').classList.remove('hidden');
+    return;
+  }
+  var r = await sb.from('trips').select().eq('code', codigo).is('deleted_at', null).single();
+  if (r.error ||!r.data) {
+    document.getElementById('erroLogin').innerText = 'Código inválido!';
+    document.getElementById('erroLogin').classList.remove('hidden');
+    return;
+  }
+  viagemAtual = r.data;
+  codigoAtual = codigo;
+  irParaViagem();
+}
+
+function irParaViagem() {
+  document.getElementById('codigoHeader').innerText = codigoAtual;
+  document.getElementById('codigoHeader').classList.remove('hidden');
+  document.getElementById('nomeViagemHeader').innerText = viagemAtual.name;
+  mostrarTela('viagem');
+  mudarAba('Roteiro');
+}
+
+function copiarLinkWhatsApp() {
+  var link = window.location.href.split('?')[0] + '?codigo=' + codigoAtual;
+  var msg = 'Oi! Entra na viagem da Isa pelo link:\n\n' + link + '\n\nCódigo: ' + codigoAtual + '\n\nÉ só clicar e entrar 👍';
+  navigator.clipboard.writeText(msg);
+  alert('Mensagem copiada! Cola no WhatsApp');
+}
+
+function mudarAba(nome) {
+  var tabs = document.querySelectorAll('.tab');
+  for (var i = 0; i < tabs.length; i++) tabs[i].classList.remove('ativo');
+  event.target.classList.add('ativo');
+  document.getElementById('nomeAba').innerText = nome;
+  var textos = {
+    'Roteiro': 'Aqui vai aparecer o roteiro completo da viagem dia por dia. 19 a 25 de abril de 2026.',
+    'Voos': 'Aqui você vê seu QR Code da passagem + CPF pra mostrar no aeroporto.',
+    'Hotel': 'Aqui fica o voucher do hotel + quarto de cada família.',
+    'Rateios': 'Aqui todo mundo lança os gastos e o app já calcula quem deve pra quem.',
+    'Chat': 'Chat da viagem pra combinar tudo + enquetes pra votar.',
+    'SOS': 'Contatos de emergência e informações médicas de cada pessoa.'
+  };
+  document.getElementById('textoAba').innerText = textos[nome];
+}
+
+function abrirSOS() {
+  alert('🚨 EMERGÊNCIA\n\nRodrigo Morales\nContato: Ana 47 99999-9999\nTipo Sanguíneo: O+\nAlergias: Camarão, Dipirona');
+}
+</script>
 </body>
 </html>
