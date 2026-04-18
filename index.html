@@ -7,27 +7,43 @@
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <style>
     *{margin:0;padding:0;box-sizing:border-box}
-    body{font-family:system-ui;background:#0f172a;color:#e2e8f0;padding-bottom:80px} 
-   .header{background:#1e293b;padding:16px;position:sticky;top:0;z-index:10}
-   .header-top{display:flex;justify-content:space-between;align-items:center}
-   .nome-viagem{font-weight:bold;font-size:18px}
-   .codigo-viagem{background:#334155;padding:6px 12px;border-radius:6px;font-family:monospace;font-size:16px;letter-spacing:2px}
-   .tela{padding:20px;display:none}
-   .tela.ativa{display:block}
-   .btn{background:#3b82f6;color:white;border:none;padding:14px;border-radius:8px;cursor:pointer;width:100%;font-size:16px;margin:8px 0}
-   .btn-verde{background:#16a34a}
-   .btn-vermelho{background:#dc2626}
-   .btn-cinza{background:#475569}
-    input{width:100%;padding:12px;margin:8px 0;background:#334155;border:1px solid #475569;color:white;border-radius:6px;font-size:16px}
-   .card{background:#1e293b;padding:16px;border-radius:8px;margin:12px 0}
-   .tabs{display:flex;overflow-x:auto;background:#1e293b;position:fixed;bottom:0;left:0;right:0}
-   .tab{padding:12px 16px;cursor:pointer;white-space:nowrap;font-size:14px}
-   .tab.ativo{background:#334155;border-top:2px solid #3b82f6}
-   .sos{position:fixed;bottom:80px;right:20px;background:#dc2626;color:white;border:none;border-radius:50%;width:60px;height:60px;font-size:24px;cursor:pointer}
-   .codigo-grande{font-size:36px;text-align:center;padding:20px;background:#334155;border-radius:8px;letter-spacing:6px;font-weight:bold;margin:16px 0}
-   .hidden{display:none}
-   .loading{text-align:center;padding:20px;color:#94a3b8}
-   .erro{background:#7f1d1d;padding:12px;border-radius:6px;margin:8px 0;color:#fecaca}
+    body{font-family:system-ui;background:#0f172a;color:#e2e8f0;padding-bottom:90px}
+ .header{background:#1e293b;padding:12px 16px;position:sticky;top:0;z-index:10;border-bottom:1px solid #334155}
+ .header-top{display:flex;justify-content:space-between;align-items:center;gap:10px}
+ .nome-viagem{font-weight:bold;font-size:16px;flex:1}
+ .codigo-viagem{background:#334155;padding:4px 10px;border-radius:6px;font-family:monospace;font-size:14px;letter-spacing:2px}
+ .tela{padding:16px;display:none;max-width:900px;margin:0 auto}
+ .tela.ativa{display:block}
+ .btn{background:#3b82f6;color:white;border:none;padding:12px;border-radius:8px;cursor:pointer;width:100%;font-size:15px;margin:6px 0}
+ .btn-verde{background:#16a34a}
+ .btn-vermelho{background:#dc2626}
+ .btn-cinza{background:#475569}
+ .btn-pequeno{padding:6px 10px;font-size:13px;width:auto;margin:0 4px 0 0}
+    input,textarea,select{width:100%;padding:10px;margin:6px 0;background:#334155;border:1px solid #475569;color:white;border-radius:6px;font-size:15px}
+    textarea{resize:vertical;min-height:70px}
+ .card{background:#1e293b;padding:14px;border-radius:8px;margin:10px 0;border:1px solid #334155}
+ .card-titulo{font-weight:bold;margin-bottom:10px;font-size:16px;display:flex;justify-content:space-between;align-items:center}
+ .tabs{display:flex;overflow-x:auto;background:#1e293b;position:fixed;bottom:0;left:0;right:0;border-top:1px solid #334155}
+ .tab{padding:10px 12px;cursor:pointer;white-space:nowrap;font-size:13px;text-align:center;min-width:70px}
+ .tab.ativo{background:#334155;border-top:2px solid #3b82f6}
+ .sos{position:fixed;bottom:95px;right:16px;background:#dc2626;color:white;border:none;border-radius:50%;width:56px;height:56px;font-size:22px;cursor:pointer;box-shadow:0 4px 12px rgba(0,0,0,0.5);z-index:5}
+ .codigo-grande{font-size:32px;text-align:center;padding:16px;background:#334155;border-radius:8px;letter-spacing:6px;font-weight:bold;margin:12px 0}
+ .hidden{display:none}
+ .loading{text-align:center;padding:16px;color:#94a3b8}
+ .erro{background:#7f1d1d;padding:10px;border-radius:6px;margin:6px 0;color:#fecaca;font-size:14px}
+ .ok{background:#14532d;padding:10px;border-radius:6px;margin:6px 0;color:#bbf7d0;font-size:14px}
+ .lista-item{background:#334155;padding:10px;border-radius:6px;margin:6px 0}
+ .lista-item-info{font-size:14px;line-height:1.5}
+ .badge{background:#475569;padding:2px 6px;border-radius:4px;font-size:11px;margin-left:6px}
+ .badge-verde{background:#16a34a}
+ .badge-vermelho{background:#dc2626}
+ .msg-chat{margin:6px 0;padding:8px;background:#334155;border-radius:8px}
+ .msg-chat-autor{font-weight:bold;font-size:11px;color:#94a3b8;margin-bottom:3px}
+ .vazio{color:#64748b;text-align:center;padding:16px;font-size:14px}
+ .grid-2{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+ .img-preview{width:100%;max-width:200px;border-radius:6px;margin:6px 0}
+ .linha{display:flex;gap:8px;align-items:center;margin:6px 0}
+ .linha > *{margin:0}
   </style>
 </head>
 <body>
@@ -38,12 +54,12 @@
     </div>
   </div>
 
+  <!-- LOGIN -->
   <div id="login" class="tela ativa">
     <div id="statusConexao" class="loading">Conectando...</div>
     <div id="erroLogin" class="erro hidden"></div>
     <div class="card">
       <h2>Entrar na Viagem</h2>
-      <p>Digite o código que recebeu no WhatsApp</p>
       <input id="inputCodigoLogin" placeholder="CÓDIGO DA VIAGEM" maxlength="6" style="text-transform:uppercase">
       <button class="btn" onclick="entrarComCodigo()">Entrar</button>
     </div>
@@ -53,167 +69,401 @@
     </div>
   </div>
 
+  <!-- CRIAR -->
   <div id="criar" class="tela">
     <div id="erroCriar" class="erro hidden"></div>
     <div class="card">
       <h3>Criar Nova Viagem</h3>
       <input id="nomeViagem" placeholder="Nome da viagem" value="15 anos da Isa - Beto Carrero 2026">
-      <input id="dataInicio" type="date" value="2026-04-19">
-      <input id="dataFim" type="date" value="2026-04-25">
+      <div class="grid-2">
+        <input id="dataInicio" type="date" value="2026-04-19">
+        <input id="dataFim" type="date" value="2026-04-25">
+      </div>
+      <input id="orcamentoPrevisto" type="number" placeholder="Orçamento previsto R$ (opcional)">
       <button class="btn" onclick="criarViagem()">Criar e Gerar Código</button>
       <div id="msgCriar" class="loading hidden">Criando...</div>
     </div>
     <button class="btn btn-cinza" onclick="mostrarTela('login')">Voltar</button>
   </div>
 
+  <!-- CÓDIGO GERADO -->
   <div id="codigoGerado" class="tela">
     <div class="card">
       <h3>Viagem criada!</h3>
-      <p>Seu código:</p>
       <div class="codigo-grande" id="codigoTrip"></div>
-      <p style="text-align:center;color:#94a3b8">Esse código fica sempre visível no topo da tela</p>
+      <p style="text-align:center;color:#94a3b8">Compartilha com o grupo</p>
     </div>
     <button class="btn btn-verde" onclick="copiarLinkWhatsApp()">Copiar Link pro WhatsApp</button>
     <button class="btn" onclick="irParaViagem()">Entrar na Viagem</button>
   </div>
 
+  <!-- VIAGEM -->
   <div id="viagem" class="tela">
     <div class="card">
-      <b>Você é o admin desta viagem</b>
-      <button class="btn btn-verde" onclick="copiarLinkWhatsApp()" style="margin-top:8px">Copiar Link pro WhatsApp</button>
+      <div class="linha">
+        <b style="flex:1">Você é o admin desta viagem</b>
+        <button class="btn btn-pequeno btn-cinza" onclick="mostrarTela('cadastroFamilia')">+ Famílias</button>
+      </div>
+      <button class="btn btn-verde" onclick="copiarLinkWhatsApp()">Copiar Link pro WhatsApp</button>
     </div>
-
-    <div id="conteudoAba" class="card">
-      <h3 id="nomeAba">Roteiro</h3>
-      <p id="textoAba">Carregando...</p>
-    </div>
-
-    <button class="sos" onclick="abrirSOS()">🚨</button>
+    <div id="conteudoAba"></div>
+    <button class="sos" onclick="mudarAba('SOS')">🚨</button>
 
     <div class="tabs">
       <div class="tab ativo" onclick="mudarAba('Roteiro')">Roteiro</div>
       <div class="tab" onclick="mudarAba('Voos')">Voos</div>
       <div class="tab" onclick="mudarAba('Hotel')">Hotel</div>
+      <div class="tab" onclick="mudarAba('Transfers')">Transfers</div>
+      <div class="tab" onclick="mudarAba('Parques')">Parques</div>
+      <div class="tab" onclick="mudarAba('Atrações')">Atrações</div>
       <div class="tab" onclick="mudarAba('Rateios')">Rateios</div>
       <div class="tab" onclick="mudarAba('Chat')">Chat</div>
-      <div class="tab" onclick="mudarAba('SOS')">Emergência</div>
+      <div class="tab" onclick="mudarAba('Galeria')">Galeria</div>
+      <div class="tab" onclick="mudarAba('Documentos')">Docs</div>
+      <div class="tab" onclick="mudarAba('Alarmes')">Alarmes</div>
+      <div class="tab" onclick="mudarAba('Checkin')">Check-in</div>
+      <div class="tab" onclick="mudarAba('SOS')">SOS</div>
     </div>
   </div>
 
+  <!-- CADASTRO FAMÍLIA -->
+  <div id="cadastroFamilia" class="tela">
+    <div class="card">
+      <h3>Cadastrar Família</h3>
+      <input id="nomeFamilia" placeholder="Nome da família ex: Família Silva">
+      <input id="pinFamilia" placeholder="PIN de 4 dígitos" type="number" maxlength="4">
+      <button class="btn" onclick="cadastrarFamilia()">Salvar Família</button>
+    </div>
+    <div id="listaFamilias"></div>
+    <button class="btn btn-cinza" onclick="mostrarTela('viagem')">Voltar</button>
+  </div>
+
 <script>
-var sb = supabase.createClient(
-  'https://cfvipeilwbeppqxvqpid.supabase.co',
-  'sb_publishable_gt9MVCBDhyHkLxmrMZnDjw_lKnogqS4'
-);
-var viagemAtual = null;
-var codigoAtual = null;
+var sb = supabase.createClient('https://cfvipeilwbeppqxvqpid.supabase.co','sb_publishable_gt9MVCBDhyHkLxmrMZnDjw_lKnogqS4');
+var viagemAtual = null, codigoAtual = null, userId = null, abaAtual = 'Roteiro', familiasCache = [], membrosCache = [];
 
 window.onload = async function() {
   var status = document.getElementById('statusConexao');
   var r = await sb.auth.signInAnonymously();
-  if (r.error) {
-    status.className = 'erro';
-    status.innerText = 'ERRO: ' + r.error.message;
-    return;
-  }
-  status.style.display = 'none';
+  if (r.error) { status.className = 'erro'; status.innerText = 'ERRO: ' + r.error.message; return; }
+  userId = r.data.user.id; status.style.display = 'none';
   var params = new URLSearchParams(window.location.search);
   var cod = params.get('codigo');
-  if (cod) {
-    document.getElementById('inputCodigoLogin').value = cod;
-    entrarComCodigo();
-  }
+  if (cod) { document.getElementById('inputCodigoLogin').value = cod; entrarComCodigo(); }
 };
 
 function mostrarTela(id) {
-  var telas = document.querySelectorAll('.tela');
-  for (var i = 0; i < telas.length; i++) telas[i].classList.remove('ativa');
+  document.querySelectorAll('.tela').forEach(t => t.classList.remove('ativa'));
   document.getElementById(id).classList.add('ativa');
   document.getElementById('erroLogin').classList.add('hidden');
   document.getElementById('erroCriar').classList.add('hidden');
+  if (id === 'cadastroFamilia') carregarFamilias();
 }
 
-function gerarCodigo() {
-  return Math.random().toString(36).substring(2, 8).toUpperCase();
-}
+function gerarCodigo() { return Math.random().toString(36).substring(2, 8).toUpperCase(); }
 
 async function criarViagem() {
   document.getElementById('msgCriar').classList.remove('hidden');
   document.getElementById('erroCriar').classList.add('hidden');
-  var nome = document.getElementById('nomeViagem').value;
-  var inicio = document.getElementById('dataInicio').value;
-  var fim = document.getElementById('dataFim').value;
-  var codigo = gerarCodigo();
-
   var r = await sb.from('trips').insert({
-    name: nome, code: codigo, start_date: inicio, end_date: fim
+    name: document.getElementById('nomeViagem').value,
+    code: gerarCodigo(),
+    start_date: document.getElementById('dataInicio').value,
+    end_date: document.getElementById('dataFim').value,
+    orcamento_previsto: document.getElementById('orcamentoPrevisto').value || null
   }).select().single();
-
   document.getElementById('msgCriar').classList.add('hidden');
-  if (r.error) {
-    document.getElementById('erroCriar').innerText = 'ERRO: ' + r.error.message;
-    document.getElementById('erroCriar').classList.remove('hidden');
-    return;
-  }
-
-  viagemAtual = r.data;
-  codigoAtual = codigo;
-  document.getElementById('codigoTrip').innerText = codigo;
-  mostrarTela('codigoGerado');
+  if (r.error) { document.getElementById('erroCriar').innerText = 'ERRO: ' + r.error.message; document.getElementById('erroCriar').classList.remove('hidden'); return; }
+  viagemAtual = r.data; codigoAtual = r.data.code; document.getElementById('codigoTrip').innerText = codigoAtual; mostrarTela('codigoGerado');
 }
 
 async function entrarComCodigo() {
   var codigo = document.getElementById('inputCodigoLogin').value.toUpperCase().trim();
-  if (!codigo) {
-    document.getElementById('erroLogin').innerText = 'Digita o código primeiro';
-    document.getElementById('erroLogin').classList.remove('hidden');
-    return;
-  }
+  if (!codigo) { document.getElementById('erroLogin').innerText = 'Digita o código'; document.getElementById('erroLogin').classList.remove('hidden'); return; }
   var r = await sb.from('trips').select().eq('code', codigo).is('deleted_at', null).single();
-  if (r.error ||!r.data) {
-    document.getElementById('erroLogin').innerText = 'Código inválido!';
-    document.getElementById('erroLogin').classList.remove('hidden');
-    return;
-  }
-  viagemAtual = r.data;
-  codigoAtual = codigo;
-  irParaViagem();
+  if (r.error ||!r.data) { document.getElementById('erroLogin').innerText = 'Código inválido!'; document.getElementById('erroLogin').classList.remove('hidden'); return; }
+  viagemAtual = r.data; codigoAtual = codigo; irParaViagem();
 }
 
 function irParaViagem() {
   document.getElementById('codigoHeader').innerText = codigoAtual;
   document.getElementById('codigoHeader').classList.remove('hidden');
   document.getElementById('nomeViagemHeader').innerText = viagemAtual.name;
-  mostrarTela('viagem');
-  mudarAba('Roteiro');
+  mostrarTela('viagem'); carregarCache(); mudarAba('Roteiro');
+}
+
+async function carregarCache() {
+  var f = await sb.from('families').select().eq('trip_id', viagemAtual.id);
+  familiasCache = f.data || [];
+  var m = await sb.from('members').select().eq('trip_id', viagemAtual.id);
+  membrosCache = m.data || [];
 }
 
 function copiarLinkWhatsApp() {
   var link = window.location.href.split('?')[0] + '?codigo=' + codigoAtual;
-  var msg = 'Oi! Entra na viagem da Isa pelo link:\n\n' + link + '\n\nCódigo: ' + codigoAtual + '\n\nÉ só clicar e entrar 👍';
-  navigator.clipboard.writeText(msg);
-  alert('Mensagem copiada! Cola no WhatsApp');
+  var msg = 'Oi! Entra na viagem da Isa:\n\n' + link + '\n\nCódigo: ' + codigoAtual;
+  navigator.clipboard.writeText(msg); alert('Link copiado!');
 }
 
 function mudarAba(nome) {
-  var tabs = document.querySelectorAll('.tab');
-  for (var i = 0; i < tabs.length; i++) tabs[i].classList.remove('ativo');
+  abaAtual = nome;
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('ativo'));
   event.target.classList.add('ativo');
-  document.getElementById('nomeAba').innerText = nome;
-  var textos = {
-    'Roteiro': 'Aqui vai aparecer o roteiro completo da viagem dia por dia. 19 a 25 de abril de 2026.',
-    'Voos': 'Aqui você vê seu QR Code da passagem + CPF pra mostrar no aeroporto.',
-    'Hotel': 'Aqui fica o voucher do hotel + quarto de cada família.',
-    'Rateios': 'Aqui todo mundo lança os gastos e o app já calcula quem deve pra quem.',
-    'Chat': 'Chat da viagem pra combinar tudo + enquetes pra votar.',
-    'SOS': 'Contatos de emergência e informações médicas de cada pessoa.'
-  };
-  document.getElementById('textoAba').innerText = textos[nome];
+  carregarAba();
 }
 
-function abrirSOS() {
-  alert('🚨 EMERGÊNCIA\n\nRodrigo Morales\nContato: Ana 47 99999-9999\nTipo Sanguíneo: O+\nAlergias: Camarão, Dipirona');
+async function carregarAba() {
+  document.getElementById('conteudoAba').innerHTML = '<div class="loading">Carregando...</div>';
+  if (abaAtual === 'Roteiro') await abaRoteiro();
+  if (abaAtual === 'Voos') await abaVoos();
+  if (abaAtual === 'Hotel') await abaHotel();
+  if (abaAtual === 'Transfers') await abaTransfers();
+  if (abaAtual === 'Parques') await abaParques();
+  if (abaAtual === 'Atrações') await abaAtracoes();
+  if (abaAtual === 'Rateios') await abaRateios();
+  if (abaAtual === 'Chat') await abaChat();
+  if (abaAtual === 'Galeria') await abaGaleria();
+  if (abaAtual === 'Documentos') await abaDocumentos();
+  if (abaAtual === 'Alarmes') await abaAlarmes();
+  if (abaAtual === 'Checkin') await abaCheckin();
+  if (abaAtual === 'SOS') await abaSOS();
 }
-</script>
-</body>
-</html>
+
+// ===== ROTEIRO =====
+async function abaRoteiro() {
+  var r = await sb.from('roteiro').select().eq('trip_id', viagemAtual.id).single();
+  var txt = r.data? r.data.content_md : '19/04/2026 - Chegada em Penha\n20/04/2026 - Beto Carrero Park\n21/04/2026 - Beto Carrero Park\n22/04/2026 - Dia livre\n23/04/2026 - Compras\n24/04/2026 - Praia\n25/04/2026 - Retorno';
+  document.getElementById('conteudoAba').innerHTML = `<div class="card"><div class="card-titulo">Roteiro da Viagem</div><textarea id="txtRot">${txt}</textarea><button class="btn" onclick="salvarRoteiro()">Salvar</button></div>`;
+}
+async function salvarRoteiro() {
+  await sb.from('roteiro').upsert({trip_id: viagemAtual.id, content_md: document.getElementById('txtRot').value});
+  alert('Salvo!');
+}
+
+// ===== VOOS =====
+async function abaVoos() {
+  var r = await sb.from('flights').select().eq('trip_id', viagemAtual.id).order('data');
+  var html = '<div class="card"><div class="card-titulo">Voos <button class="btn btn-pequeno btn-verde" onclick="addVoo()">+ Add</button></div>';
+  if (!r.data || r.data.length === 0) html += '<div class="vazio">Nenhum voo</div>';
+  else r.data.forEach(v => {
+    html += `<div class="lista-item"><div class="lista-item-info"><b>${v.cia||''} ${v.numero_voo||''}</b><br>${v.origem} → ${v.destino}<br>${v.data} ${v.horario||''}<br><button class="btn btn-pequeno" onclick="uploadTicketVoo('${v.id}')">Upload QR Code</button></div></div>`;
+  });
+  html += '</div>'; document.getElementById('conteudoAba').innerHTML = html;
+}
+async function addVoo() {
+  var cia = prompt('Companhia:'); if(!cia)return;
+  var num = prompt('Nº Voo:'); var ori = prompt('Origem:'); var des = prompt('Destino:');
+  var dat = prompt('Data AAAA-MM-DD:'); var hor = prompt('Horário:');
+  await sb.from('flights').insert({trip_id: viagemAtual.id, cia, numero_voo:num, origem:ori, destino:des, data:dat, horario:hor});
+  abaVoos();
+}
+async function uploadTicketVoo(flightId) {
+  var inp = document.createElement('input'); inp.type = 'file'; inp.accept = 'image/*,.pdf';
+  inp.onchange = async function(e) {
+    var file = e.target.files[0]; if(!file)return;
+    var nome = membrosCache[0]? prompt('Nome da pessoa no ticket:', membrosCache[0].name) : prompt('Nome da pessoa:');
+    var mem = membrosCache.find(m => m.name === nome);
+    if(!mem) { alert('Pessoa não encontrada. Cadastre em Famílias primeiro.'); return; }
+    var path = `${viagemAtual.id}/voos/${flightId}/${mem.id}_${file.name}`;
+    var up = await sb.storage.from('tickets').upload(path, file, {upsert:true});
+    if(up.error) { alert('Erro upload: '+up.error.message); return; }
+    var url = sb.storage.from('tickets').getPublicUrl(path).data.publicUrl;
+    await sb.from('flight_tickets').upsert({flight_id:flightId, member_id:mem.id, ticket_url:url});
+    alert('QR Code salvo!');
+  };
+  inp.click();
+}
+
+// ===== HOTEL =====
+async function abaHotel() {
+  var r = await sb.from('hotels').select().eq('trip_id', viagemAtual.id);
+  var html = '<div class="card"><div class="card-titulo">Hotéis <button class="btn btn-pequeno btn-verde" onclick="addHotel()">+ Add</button></div>';
+  if (!r.data || r.data.length === 0) html += '<div class="vazio">Nenhum hotel</div>';
+  else r.data.forEach(h => {
+    html += `<div class="lista-item"><div class="lista-item-info"><b>${h.nome}</b><br>Check-in: ${h.checkin||'-'} | Check-out: ${h.checkout||'-'}<br>${h.endereco||''}</div></div>`;
+  });
+  html += '</div>'; document.getElementById('conteudoAba').innerHTML = html;
+}
+async function addHotel() {
+  var nome = prompt('Nome do hotel:'); if(!nome)return;
+  var end = prompt('Endereço:'); var ci = prompt('Check-in AAAA-MM-DD:'); var co = prompt('Check-out AAAA-MM-DD:');
+  await sb.from('hotels').insert({trip_id: viagemAtual.id, nome, endereco:end, checkin:ci, checkout:co});
+  abaHotel();
+}
+
+// ===== TRANSFERS =====
+async function abaTransfers() {
+  var r = await sb.from('transfers').select().eq('trip_id', viagemAtual.id).order('data_hora');
+  var html = '<div class="card"><div class="card-titulo">Transfers <button class="btn btn-pequeno btn-verde" onclick="addTransfer()">+ Add</button></div>';
+  if (!r.data || r.data.length === 0) html += '<div class="vazio">Nenhum transfer</div>';
+  else r.data.forEach(t => {
+    var dh = new Date(t.data_hora).toLocaleString('pt-BR');
+    html += `<div class="lista-item"><div class="lista-item-info"><b>${t.origem} → ${t.destino}</b><br>${dh}<br>Responsável: ${t.responsavel||'-'} | Placa: ${t.placa||'-'}</div></div>`;
+  });
+  html += '</div>'; document.getElementById('conteudoAba').innerHTML = html;
+}
+async function addTransfer() {
+  var dh = prompt('Data e hora AAAA-MM-DD HH:MM:'); if(!dh)return;
+  var ori = prompt('Origem:'); var des = prompt('Destino:'); var resp = prompt('Responsável:'); var placa = prompt('Placa:');
+  await sb.from('transfers').insert({trip_id: viagemAtual.id, data_hora:dh, origem:ori, destino:des, responsavel:resp, placa});
+  abaTransfers();
+}
+
+// ===== PARQUES =====
+async function abaParques() {
+  var r = await sb.from('parks').select().eq('trip_id', viagemAtual.id);
+  var html = '<div class="card"><div class="card-titulo">Parques <button class="btn btn-pequeno btn-verde" onclick="addPark()">+ Add</button></div>';
+  if (!r.data || r.data.length === 0) html += '<div class="vazio">Nenhum parque</div>';
+  else r.data.forEach(p => {
+    html += `<div class="lista-item"><div class="lista-item-info"><b>${p.nome}</b> - ${p.data||''}<br><button class="btn btn-pequeno" onclick="uploadIngressoPark('${p.id}')">Upload Ingresso</button></div></div>`;
+  });
+  html += '</div>'; document.getElementById('conteudoAba').innerHTML = html;
+}
+async function addPark() {
+  var nome = prompt('Nome do parque:','Beto Carrero World'); if(!nome)return;
+  var dat = prompt('Data AAAA-MM-DD:');
+  await sb.from('parks').insert({trip_id: viagemAtual.id, nome, data:dat});
+  abaParques();
+}
+async function uploadIngressoPark(parkId) {
+  var inp = document.createElement('input'); inp.type = 'file'; inp.accept = 'image/*,.pdf';
+  inp.onchange = async function(e) {
+    var file = e.target.files[0]; if(!file)return;
+    var nome = prompt('Nome da pessoa no ingresso:');
+    var mem = membrosCache.find(m => m.name === nome);
+    if(!mem) { alert('Cadastre a pessoa primeiro'); return; }
+    var path = `${viagemAtual.id}/parks/${parkId}/${mem.id}_${file.name}`;
+    var up = await sb.storage.from('tickets').upload(path, file, {upsert:true});
+    if(up.error) { alert('Erro: '+up.error.message); return; }
+    var url = sb.storage.from('tickets').getPublicUrl(path).data.publicUrl;
+    await sb.from('park_tickets').upsert({park_id:parkId, member_id:mem.id, ticket_url:url});
+    alert('Ingresso salvo!');
+  };
+  inp.click();
+}
+
+// ===== ATRAÇÕES =====
+async function abaAtracoes() {
+  var r = await sb.from('attractions').select().eq('trip_id', viagemAtual.id).order('data_hora');
+  var html = '<div class="card"><div class="card-titulo">Atrações/Shows <button class="btn btn-pequeno btn-verde" onclick="addAtracao()">+ Add</button></div>';
+  if (!r.data || r.data.length === 0) html += '<div class="vazio">Nenhuma atração</div>';
+  else r.data.forEach(a => {
+    var dh = a.data_hora? new Date(a.data_hora).toLocaleString('pt-BR') : '-';
+    html += `<div class="lista-item"><div class="lista-item-info"><b>${a.nome}</b><br>${dh}</div></div>`;
+  });
+  html += '</div>'; document.getElementById('conteudoAba').innerHTML = html;
+}
+async function addAtracao() {
+  var nome = prompt('Nome da atração/show:'); if(!nome)return;
+  var dh = prompt('Data e hora AAAA-MM-DD HH:MM (opcional):');
+  await sb.from('attractions').insert({trip_id: viagemAtual.id, nome, data_hora:dh||null});
+  abaAtracoes();
+}
+
+// ===== RATEIOS =====
+async function abaRateios() {
+  var r = await sb.from('expenses').select().eq('trip_id', viagemAtual.id).order('data',{ascending:false});
+  var total = 0; var html = '<div class="card"><div class="card-titulo">Gastos <button class="btn btn-pequeno btn-verde" onclick="addGasto()">+ Lançar</button></div>';
+  if (!r.data || r.data.length === 0) html += '<div class="vazio">Nenhum gasto</div>';
+  else {
+    r.data.forEach(e => {
+      total += parseFloat(e.valor);
+      html += `<div class="lista-item"><div class="lista-item-info"><b>${e.descricao}</b> - R$ ${parseFloat(e.valor).toFixed(2)}<br>${e.data} | ${e.categoria||'Geral'}</div></div>`;
+    });
+    html += `<div style="text-align:right;margin-top:10px;font-size:17px"><b>Total: R$ ${total.toFixed(2)}</b></div>`;
+    if (membrosCache.length > 0) html += `<div style="text-align:right;font-size:14px;color:#94a3b8">Por pessoa: R$ ${(total/membrosCache.length).toFixed(2)}</div>`;
+  }
+  html += '</div>'; document.getElementById('conteudoAba').innerHTML = html;
+}
+async function addGasto() {
+  var desc = prompt('Descrição:'); if(!desc)return;
+  var val = prompt('Valor R$:'); var cat = prompt('Categoria:');
+  var dat = prompt('Data AAAA-MM-DD:', new Date().toISOString().split('T')[0]);
+  await sb.from('expenses').insert({trip_id: viagemAtual.id, descricao:desc, valor:parseFloat(val), categoria:cat, data:dat});
+  abaRateios();
+}
+
+// ===== CHAT =====
+async function abaChat() {
+  var r = await sb.from('messages').select().eq('trip_id', viagemAtual.id).order('created_at').limit(100);
+  var html = '<div class="card"><div class="card-titulo">Chat</div><div id="listaMsg" style="max-height:350px;overflow-y:auto;margin-bottom:10px">';
+  if (!r.data || r.data.length === 0) html += '<div class="vazio">Nenhuma mensagem</div>';
+  else r.data.forEach(m => {
+    var data = new Date(m.created_at).toLocaleString('pt-BR');
+    html += `<div class="msg-chat"><div class="msg-chat-autor">${m.member_name||'Anônimo'} - ${data}</div>${m.texto}</div>`;
+  });
+  html += `</div><input id="nomeChat" placeholder="Seu nome" value="Eu"><textarea id="textoChat" placeholder="Mensagem..." rows="2"></textarea><button class="btn" onclick="enviarMsg()">Enviar</button></div>`;
+  document.getElementById('conteudoAba').innerHTML = html;
+  var lista = document.getElementById('listaMsg'); if(lista) lista.scrollTop = lista.scrollHeight;
+}
+async function enviarMsg() {
+  var nome = document.getElementById('nomeChat').value || 'Anônimo';
+  var texto = document.getElementById('textoChat').value.trim(); if(!texto)return;
+  await sb.from('messages').insert({trip_id: viagemAtual.id, member_name:nome, texto, user_id:userId});
+  document.getElementById('textoChat').value = ''; abaChat();
+}
+
+// ===== GALERIA =====
+async function abaGaleria() {
+  var r = await sb.from('gallery').select().eq('trip_id', viagemAtual.id).order('created_at',{ascending:false});
+  var html = '<div class="card"><div class="card-titulo">Galeria <button class="btn btn-pequeno btn-verde" onclick="uploadFoto()">+ Foto</button></div>';
+  if (!r.data || r.data.length === 0) html += '<div class="vazio">Nenhuma foto</div>';
+  else {
+    html += '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px">';
+    r.data.forEach(g => {
+      html += `<div><img src="${g.url}" class="img-preview" onclick="window.open('${g.url}')"><div style="font-size:11px;color:#94a3b8">${g.descricao||''}</div></div>`;
+    });
+    html += '</div>';
+  }
+  html += '</div>'; document.getElementById('conteudoAba').innerHTML = html;
+}
+async function uploadFoto() {
+  var inp = document.createElement('input'); inp.type = 'file'; inp.accept = 'image/*';
+  inp.onchange = async function(e) {
+    var file = e.target.files[0]; if(!file)return;
+    var desc = prompt('Descrição da foto:');
+    var path = `${viagemAtual.id}/galeria/${Date.now()}_${file.name}`;
+    var up = await sb.storage.from('galeria').upload(path, file);
+    if(up.error) { alert('Erro: '+up.error.message); return; }
+    var url = sb.storage.from('galeria').getPublicUrl(path).data.publicUrl;
+    await sb.from('gallery').insert({trip_id: viagemAtual.id, url, descricao:desc});
+    abaGaleria();
+  };
+  inp.click();
+}
+
+// ===== DOCUMENTOS =====
+async function abaDocumentos() {
+  var r = await sb.from('documents').select('*, members(name)').eq('family_id', null);
+  var html = '<div class="card"><div class="card-titulo">Documentos <button class="btn btn-pequeno btn-verde" onclick="uploadDoc()">+ Upload</button></div>';
+  if (!r.data || r.data.length === 0) html += '<div class="vazio">Nenhum documento</div>';
+  else r.data.forEach(d => {
+    html += `<div class="lista-item"><div class="lista-item-info"><b>${d.tipo||'Documento'}</b><br><a href="${d.arquivo_url}" target="_blank" style="color:#3b82f6">Abrir arquivo</a></div></div>`;
+  });
+  html += '</div>'; document.getElementById('conteudoAba').innerHTML = html;
+}
+async function uploadDoc() {
+  var inp = document.createElement('input'); inp.type = 'file';
+  inp.onchange = async function(e) {
+    var file = e.target.files[0]; if(!file)return;
+    var tipo = prompt('Tipo: RG, CPF, Passaporte, Voucher:');
+    var path = `${viagemAtual.id}/docs/${Date.now()}_${file.name}`;
+    var up = await sb.storage.from('documentos').upload(path, file);
+    if(up.error) { alert('Erro: '+up.error.message); return; }
+    var url = sb.storage.from('documentos').getPublicUrl(path).data.publicUrl;
+    await sb.from('documents').insert({arquivo_url:url, tipo});
+    abaDocumentos();
+  };
+  inp.click();
+}
+
+// ===== ALARMES =====
+async function abaAlarmes() {
+  var r = await sb.from('alarms').select().eq('trip_id', viagemAtual.id).order('data_hora');
+  var html = '<div class="card"><div class="card-titulo">Alarmes <button class="btn btn-pequeno btn-verde" onclick="addAlarme()">+ Add</button></div>';
+  if (!r.data || r.data.length === 0) html += '<div class="vazio">Nenhum alarme</div>';
+  else r.data.forEach(a => {
+    var dh = new Date(a.data_hora).toLocaleString('pt-BR');
+    html += `<div class="lista-item"><div class="lista-item-info"><b>${a.titulo}</b><br>${dh}<br>${a.descricao||''}</div></div>`;
+  });
+  html += '</div>'; document
