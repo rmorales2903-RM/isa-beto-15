@@ -22,7 +22,8 @@
   <script>
     const SUPABASE_URL = 'https://cfvipeilwbeppqxvqpid.supabase.co';
     const SUPABASE_KEY = 'sb_publishable_gt9MVCBDhyHkLxmrMZnDjw_lKnogqS4';
-    const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+    // MUDEI O NOME PRA 'sb' PRA NÃO DAR CONFLITO
+    const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
     
     function log(msg, tipo = 'info') {
       const div = document.createElement('div');
@@ -36,30 +37,27 @@
       log('1. URL: ' + SUPABASE_URL);
       log('2. KEY: ' + SUPABASE_KEY.substring(0,20) + '...');
       
-      // TESTE 1: Login anônimo
       log('\n3. TESTANDO LOGIN ANÔNIMO...');
-      const { data: authData, error: authError } = await supabase.auth.signInAnonymously();
+      const { data: authData, error: authError } = await sb.auth.signInAnonymously();
       if (authError) {
         log('ERRO NO LOGIN ANÔNIMO: ' + JSON.stringify(authError, null, 2), 'erro');
-        log('SOLUÇÃO: Vai no Supabase > Authentication > Providers > Ativa "Anonymous"', 'erro');
+        log('SOLUÇÃO: Supabase > Authentication > Providers > Ativa "Anonymous"', 'erro');
         return;
       }
       log('LOGIN ANÔNIMO OK. User ID: ' + authData.user.id, 'ok');
 
-      // TESTE 2: Ler tabela trips
       log('\n4. TESTANDO LEITURA DA TABELA trips...');
-      const { data: readData, error: readError } = await supabase.from('trips').select('*').limit(1);
+      const { data: readData, error: readError } = await sb.from('trips').select('*').limit(1);
       if (readError) {
         log('ERRO AO LER trips: ' + JSON.stringify(readError, null, 2), 'erro');
-        log('SOLUÇÃO: Roda o SQL de novo. Tabela não existe ou RLS tá bloqueando.', 'erro');
+        log('SOLUÇÃO: Roda o SQL de novo. Tabela não existe ou RLS bloqueando.', 'erro');
         return;
       }
       log('LEITURA OK. Encontrados: ' + readData.length + ' registros', 'ok');
 
-      // TESTE 3: Criar viagem
       log('\n5. TESTANDO CRIAR VIAGEM...');
       const codigo = 'TEST' + Math.random().toString(36).substring(2, 6).toUpperCase();
-      const { data: insertData, error: insertError } = await supabase.from('trips').insert({
+      const { data: insertData, error: insertError } = await sb.from('trips').insert({
         name: 'Viagem Teste Diagnóstico',
         code: codigo,
         start_date: '2026-04-19',
@@ -69,8 +67,8 @@
       if (insertError) {
         log('ERRO AO CRIAR VIAGEM: ' + JSON.stringify(insertError, null, 2), 'erro');
         if (insertError.code === '42501') {
-          log('ERRO 42501 = PERMISSION DENIED. O RLS tá bloqueando.', 'erro');
-          log('SOLUÇÃO: Roda o SQL que te mandei com "create policy anon_all... using (true)"', 'erro');
+          log('ERRO 42501 = PERMISSION DENIED. O RLS tá bloqueando INSERT.', 'erro');
+          log('SOLUÇÃO: Roda o SQL com "create policy anon_all... using (true) with check (true)"', 'erro');
         }
         return;
       }
