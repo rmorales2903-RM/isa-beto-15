@@ -42,7 +42,7 @@ body{background:var(--cinza);color:var(--cinza-escuro)}
 <script>
 const SUPABASE_URL = 'https://cfvipeilwbeppqxvqpid.supabase.co';
 const SUPABASE_ANON_KEY = 'sb_publishable_gt9MVCBDhyHkLxmrMZnDjw_lKnogqS4';
-const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
 let usuario = null;
 let viagemAtual = null;
