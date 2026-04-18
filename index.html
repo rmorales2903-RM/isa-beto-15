@@ -557,73 +557,28 @@ async function carregarAlarmes(){
   document.getElementById('conteudo').innerHTML = html;
 }
 
-async function carregarDocs(){
-  const {data: membros} = await supabaseClient.from('members').select('*').eq('family_id', familiaAtual.id);
-  let html = '<h2>📄 Documentos da Família</h2>';
-  html += '<div class="card"><h3>Cadastrar Membro</h3>';
-  html += '<input id="memNome" class="input" placeholder="Nome completo">';
-  html += '<input id="memEmergNome" class="input" placeholder="Contato emergência: nome">';
-  html += '<input id="memEmergFone" class="input" placeholder="Contato emergência: telefone">';
-  html += '<input id="memMed" class="input" placeholder="Info médica: alergias, remédios">';
-  html += '<input id="memCpf" class="input" placeholder="CPF">';
-  html += '<input id="memRg" class="input" placeholder="RG">';
-  html += '<label class="label">Anexar Documento (RG/CPF/Passaporte):</label>';
-  html += '<input id="memFile" type="file" class="input" accept=".pdf,.jpg,.png,.jpeg">';
-  html += '<button class="btn" onclick="salvarMembro()">
-'">Salvar Membro</button></div>';
+async function aba(nome, el){
+  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+  if(el) el.classList.add('active');
 
-  if(membros && membros.length > 0){
-    html += '<div class="card"><h3>Membros Cadastrados</h3>';
-    for(const m of membros){
-      const docs = await buscarDocs('pessoal', m.id);
-      html += `<div style="border-bottom:1px solid var(--cinza);padding:12px 0;margin-bottom:12px">
-        <strong>${m.name}</strong><br>
-        <small>CPF: ${m.cpf || '---'} | RG: ${m.rg || '---'}</small><br>
-        <small>Emergência: ${m.emergencia_nome || '---'} - ${m.emergencia_fone || '---'}</small><br>
-        <small>Info Médica: ${m.info_medica || '---'}</small>
-        ${docs.length > 0? '<div class="file-list">' + docs.map(d=>`<div class="file-item"><a href="${d.url}" target="_blank">📄 ${d.nome_arquivo}</a></div>`).join('') + '</div>' : ''}
-      </div>`;
-    }
-    html += '</div>';
+  const conteudo = document.getElementById('conteudo');
+  conteudo.innerHTML = '<div class="loading">Carregando...</div>';
+
+  try {
+    if(nome === 'parques') await carregarParques();
+    else if(nome === 'voos') await carregarVoos();
+    else if(nome === 'hospedagem') await carregarHoteis();
+    else if(nome === 'transporte') await carregarTransportes();
+    else if(nome === 'alarmes') await carregarAlarmes();
+    else if(nome === 'docs') await carregarDocs();
+  } catch(e) {
+    console.error('ERRO na aba ' + nome + ':', e);
+    conteudo.innerHTML = `<div class="card" style="border:2px solid #dc2626">
+      <h3 style="color:#dc2626">Erro ao carregar ${nome}</h3>
+      <p><strong>${e.message}</strong></p>
+      <button class="btn" onclick="aba('${nome}', document.querySelector('.tab.active'))">Tentar de novo</button>
+    </div>`;
   }
-  document.getElementById('conteudo').innerHTML = html;
-}
-
-async function salvarMembro(){
-  const dados = {
-    family_id: familiaAtual.id,
-    name: document.getElementById('memNome').value,
-    emergencia_nome: document.getElementById('memEmergNome').value,
-    emergencia_fone: document.getElementById('memEmergFone').value,
-    info_medica: document.getElementById('memMed').value,
-    cpf: document.getElementById('memCpf').value,
-    rg: document.getElementById('memRg').value
-  };
-  if(!dados.name) return alert('Preenche o nome');
-  const {data: mem, error} = await supabaseClient.from('members').insert(dados).select().single();
-  if(error) return alert('Erro: ' + error.message);
-  await uploadArquivo('memFile', 'pessoal', mem.id);
-  alert('Membro cadastrado!');
-  carregarDocs();
-}
-
-async function abrirSOS(){
-  if(!sessaoValida) return alert('Faça login na família primeiro');
-  const {data: membros} = await supabaseClient.from('members').select('*').eq('family_id', familiaAtual.id).limit(1);
-  if(!membros || membros.length === 0) return alert('Cadastre membros na aba Documentos primeiro');
-  const eu = membros[0];
-  document.getElementById('dadosSOS').innerHTML = `
-    <p><strong>${eu.name}</strong></p>
-    <p>🚨 Emergência: ${eu.emergencia_nome || 'Não cadastrado'} - ${eu.emergencia_fone || ''}</p>
-    <p>💊 Info Médica: ${eu.info_medica || 'Não informado'}</p>
-    <p>📄 CPF: ${eu.cpf || '---'} | RG: ${eu.rg || '---'}</p>
-    <p style="margin-top:16px;font-size:14px">Mostre esta tela para socorristas</p>
-  `;
-  document.getElementById('modalSOS').classList.add('show');
-}
-
-function fecharModal(id){ 
-  document.getElementById(id).classList.remove('show'); 
 }
 </script>
 </body>
