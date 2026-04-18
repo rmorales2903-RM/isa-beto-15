@@ -52,27 +52,12 @@ let atracaoSelecionadaId = null;
 
 init();
 async function init(){
-  console.log('Iniciando app...');
-  const timeout = setTimeout(()=>{
-    console.log('Timeout - mostrando login');
-    mostrarLogin();
-  }, 3000);
-  
-  try {
-    const {data:{session}} = await supabaseClient.auth.getSession();
-    clearTimeout(timeout);
-    if(session){ 
-      console.log('Sessão encontrada');
-      usuario = session.user; 
-      await verificarSessaoFamilia(); 
-      await carregarApp(); 
-    } else { 
-      console.log('Sem sessão - login');
-      mostrarLogin(); 
-    }
-  } catch(e) {
-    console.error('Erro init:', e);
-    clearTimeout(timeout);
+  const sessao = localStorage.getItem('usuario_logado');
+  if(sessao){
+    usuario = JSON.parse(sessao);
+    await verificarSessaoFamilia();
+    await carregarApp();
+  } else {
     mostrarLogin();
   }
 }
@@ -91,49 +76,34 @@ async function verificarSessaoFamilia(){
 }
 
 function mostrarLogin(){
-  console.log('Renderizando login');
   document.getElementById('app').innerHTML = `
     <div class="content">
       <div class="card">
         <h2>Entrar na Viagem</h2>
-        <input type="email" id="email" class="input" placeholder="Email">
-        <input type="password" id="senha" class="input" placeholder="Senha">
+        <input type="text" id="username" class="input" placeholder="Nome de usuário: morales" value="morales">
+        <input type="password" id="password" class="input" placeholder="Senha: 1234" value="1234">
         <button class="btn" onclick="fazerLogin()">Entrar</button>
-        <button class="btn btn-sec" onclick="mostrarCadastro()">Criar Conta</button>
+        <p style="margin-top:12px;font-size:14px;color:#666">Use: morales / 1234</p>
       </div>
     </div>
   `;
-}
-
-function mostrarCadastro(){
-  document.getElementById('app').innerHTML = `
-    <div class="content">
-      <div class="card">
-        <h2>Criar Conta</h2>
-        <input type="email" id="emailCad" class="input" placeholder="Email">
-        <input type="password" id="senhaCad" class="input" placeholder="Senha mínimo 6 caracteres">
-        <button class="btn" onclick="fazerCadastro()">Cadastrar</button>
-        <button class="btn btn-sec" onclick="mostrarLogin()">Voltar</button>
-      </div>
-    </div>
-  `;
-}
-
-async function fazerCadastro(){
-  const email = document.getElementById('emailCad').value;
-  const senha = document.getElementById('senhaCad').value;
-  const {data, error} = await supabaseClient.auth.signUp({email, password: senha});
-  if(error) return alert('Erro: ' + error.message);
-  alert('Conta criada! Faça login.');
-  mostrarLogin();
 }
 
 async function fazerLogin(){
-  const email = document.getElementById('email').value;
-  const senha = document.getElementById('senha').value;
-  const {data, error} = await supabaseClient.auth.signInWithPassword({email, password: senha});
-  if(error) return alert('Erro: ' + error.message);
-  usuario = data.user;
+  const username = document.getElementById('username').value.trim().toLowerCase();
+  const password = document.getElementById('password').value;
+  
+  const {data: users, error} = await supabaseClient
+   .from('users')
+   .select('*')
+   .eq('username', username)
+   .eq('password', password)
+   .single();
+    
+  if(error ||!users) return alert('Usuário ou senha incorretos');
+  
+  usuario = users;
+  localStorage.setItem('usuario_logado', JSON.stringify(users));
   await carregarApp();
 }
 
@@ -154,7 +124,7 @@ async function carregarApp(){
     }
   } catch(e) {
     console.error('Erro carregarApp:', e);
-    document.getElementById('app').innerHTML = `<div class="content"><div class="card"><h2>Erro</h2><p>${e.message}</p><p>Já rodou o SQL no Supabase?</p><button class="btn" onclick="mostrarLogin()">Voltar</button></div></div>`;
+    document.getElementById('app').innerHTML = `<div class="content"><div class="card"><h2>Erro</h2><p>${e.message}</p><button class="btn" onclick="localStorage.clear();location.reload()">Sair e tentar de novo</button></div></div>`;
   }
 }
 
