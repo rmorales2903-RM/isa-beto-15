@@ -1,0 +1,340 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>15 anos da Isa - Beto Carrero 2026</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+:root {--azul:#2563EB;--branco:#FFFFFF;--cinza:#F3F4F6;--cinza-escuro:#374151;--vermelho:#dc2626}
+*{margin:0;padding:0;box-sizing:border-box;font-family:system-ui,-apple-system,sans-serif}
+body{background:var(--cinza);color:var(--cinza-escuro)}
+.header{background:var(--azul);color:var(--branco);padding:16px;display:flex;justify-content:space-between;align-items:center;position:sticky;top:0;z-index:100}
+.btn-sos{background:var(--vermelho);color:#fff;border:none;padding:8px 16px;border-radius:8px;font-weight:700;cursor:pointer}
+.tabs{display:flex;overflow-x:auto;background:var(--branco);border-bottom:2px solid var(--cinza);position:sticky;top:60px;z-index:99}
+.tab{padding:12px 16px;border:none;background:transparent;cursor:pointer;white-space:nowrap;font-weight:600;color:var(--cinza-escuro)}
+.tab.active{color:var(--azul);border-bottom:3px solid var(--azul)}
+.content{padding:16px;max-width:800px;margin:0 auto}
+.card{background:var(--branco);border-radius:12px;padding:16px;margin-bottom:12px;box-shadow:0 1px 3px rgba(0,0,0,0.1)}
+.btn{background:var(--azul);color:var(--branco);border:none;padding:12px 20px;border-radius:8px;font-weight:600;cursor:pointer;width:100%;margin-top:8px}
+.btn-sec{background:var(--cinza);color:var(--cinza-escuro)}
+.modal{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:1000;align-items:center;justify-content:center}
+.modal.show{display:flex}
+.modal-content{background:var(--branco);border-radius:16px;padding:24px;max-width:500px;width:90%;max-height:80vh;overflow-y:auto}
+.input{width:100%;padding:12px;border:2px solid var(--cinza);border-radius:8px;margin:8px 0;font-size:16px}
+.public-counter{background:var(--cinza);padding:8px 12px;border-radius:8px;margin:8px 0;font-size:14px}
+.checkbox{display:flex;align-items:center;margin:8px 0}
+.checkbox input{margin-right:8px;width:20px;height:20px}
+.loading{text-align:center;padding:40px;color:var(--cinza-escuro)}
+</style>
+</head>
+<body>
+<div class="header">
+  <h1>15 anos da Isa</h1>
+  <button class="btn-sos" onclick="abrirSOS()">🚨 SOS</button>
+</div>
+<div id="app"><div class="loading">Carregando...</div></div>
+
+<div id="modalSOS" class="modal"><div class="modal-content"><h2 style="color:#dc2626;margin-bottom:16px">🚨 EMERGÊNCIA</h2><div id="dadosSOS"></div><button class="btn" onclick="fecharModal('modalSOS')">Fechar</button></div></div>
+<div id="modalParticipar" class="modal"><div class="modal-content"><h3 id="tituloParticipar"></h3><div id="listaMembros"></div><button class="btn" onclick="salvarParticipacao()">Salvar Participação</button><button class="btn btn-sec" onclick="fecharModal('modalParticipar')">Cancelar</button></div></div>
+<div id="modalNovaAtracao" class="modal"><div class="modal-content"><h3>Nova Atração</h3><input id="atrNome" class="input" placeholder="Nome: Ex. Hot Wheels"><input id="atrData" type="date" class="input"><input id="atrHora" type="time" class="input" placeholder="Horário"><input id="atrLocal" class="input" placeholder="Local: Arena Principal"><button class="btn" onclick="salvarNovaAtracao()">Salvar</button><button class="btn btn-sec" onclick="fecharModal('modalNovaAtracao')">Cancelar</button></div></div>
+
+<script>
+const SUPABASE_URL = 'https://cfvipeilwbeppqxvqpid.supabase.co';
+const SUPABASE_ANON_KEY = 'sb_publishable_gt9MVCBDhyHkLxmrMZnDjw_lKnogqS4';
+const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+let usuario = null;
+let viagemAtual = null;
+let familiaAtual = null;
+let sessaoValida = false;
+let atracaoSelecionada = null;
+let atracaoSelecionadaId = null;
+
+init();
+async function init(){
+  try {
+    const {data:{session}} = await supabase.auth.getSession();
+    if(session){ 
+      usuario = session.user; 
+      await verificarSessaoFamilia(); 
+      await carregarApp(); 
+    } else { 
+      mostrarLogin(); 
+    }
+  } catch(e) {
+    console.error(e);
+    document.getElementById('app').innerHTML = '<div class="content"><div class="card"><h2>Erro ao conectar</h2><p>Verifique sua conexão e se o Supabase está configurado.</p><p>'+e.message+'</p></div></div>';
+  }
+}
+
+async function verificarSessaoFamilia(){
+  const sessao = localStorage.getItem('familia_sessao');
+  if(sessao){ 
+    const dados = JSON.parse(sessao); 
+    if(dados.expira > Date.now()){ 
+      familiaAtual = dados.familia; 
+      sessaoValida = true; 
+    } else { 
+      localStorage.removeItem('familia_sessao'); 
+    } 
+  }
+}
+
+function mostrarLogin(){
+  document.getElementById('app').innerHTML = `
+    <div class="content">
+      <div class="card">
+        <h2>Entrar na Viagem</h2>
+        <input type="email" id="email" class="input" placeholder="Email">
+        <input type="password" id="senha" class="input" placeholder="Senha">
+        <button class="btn" onclick="fazerLogin()">Entrar</button>
+        <button class="btn btn-sec" onclick="mostrarCadastro()">Criar Conta</button>
+      </div>
+    </div>
+  `;
+}
+
+function mostrarCadastro(){
+  document.getElementById('app').innerHTML = `
+    <div class="content">
+      <div class="card">
+        <h2>Criar Conta</h2>
+        <input type="email" id="emailCad" class="input" placeholder="Email">
+        <input type="password" id="senhaCad" class="input" placeholder="Senha mínimo 6 caracteres">
+        <button class="btn" onclick="fazerCadastro()">Cadastrar</button>
+        <button class="btn btn-sec" onclick="mostrarLogin()">Voltar</button>
+      </div>
+    </div>
+  `;
+}
+
+async function fazerCadastro(){
+  const email = document.getElementById('emailCad').value;
+  const senha = document.getElementById('senhaCad').value;
+  const {data, error} = await supabase.auth.signUp({email, password: senha});
+  if(error) return alert('Erro: ' + error.message);
+  alert('Conta criada! Verifique seu email se necessário, depois faça login.');
+  mostrarLogin();
+}
+
+async function fazerLogin(){
+  const email = document.getElementById('email').value;
+  const senha = document.getElementById('senha').value;
+  const {data, error} = await supabase.auth.signInWithPassword({email, password: senha});
+  if(error) return alert('Erro: ' + error.message);
+  usuario = data.user;
+  await carregarApp();
+}
+
+async function carregarApp(){
+  document.getElementById('app').innerHTML = '<div class="loading">Carregando viagem...</div>';
+  const {data: viagens} = await supabase.from('trips').select('*').is('deleted_at', null).limit(1);
+  if(!viagens || viagens.length === 0){ 
+    mostrarCriarViagem(); 
+    return; 
+  }
+  viagemAtual = viagens[0];
+  
+  if(!sessaoValida){ 
+    await mostrarSelecaoFamilia(); 
+  } else { 
+    mostrarAbas(); 
+  }
+}
+
+function mostrarCriarViagem(){
+  document.getElementById('app').innerHTML = `
+    <div class="content">
+      <div class="card">
+        <h2>Criar Nova Viagem</h2>
+        <input id="viagemNome" class="input" placeholder="Nome: 15 anos da Isa" value="15 anos da Isa">
+        <input id="viagemInicio" type="date" class="input">
+        <input id="viagemFim" type="date" class="input">
+        <button class="btn" onclick="criarViagem()">Criar Viagem</button>
+      </div>
+    </div>
+  `;
+}
+
+async function criarViagem(){
+  const nome = document.getElementById('viagemNome').value;
+  const inicio = document.getElementById('viagemInicio').value;
+  const fim = document.getElementById('viagemFim').value;
+  const {data, error} = await supabase.from('trips').insert({
+    name: nome, start_date: inicio, end_date: fim, admin_id: usuario.id
+  }).select().single();
+  if(error) return alert('Erro: ' + error.message);
+  viagemAtual = data;
+  alert('Viagem criada! Código: ' + data.code);
+  await mostrarSelecaoFamilia();
+}
+
+async function mostrarSelecaoFamilia(){
+  const {data: familias} = await supabase.from('families').select('*').eq('trip_id', viagemAtual.id);
+  let html = '<div class="content"><div class="card"><h2>Selecione sua família</h2>';
+  if(familias && familias.length > 0){
+    familias.forEach(f=>{
+      html += `<button class="btn" onclick="entrarFamilia('${f.id}','${f.name}')">${f.name}</button>`;
+    });
+  }
+  html += '<button class="btn btn-sec" onclick="mostrarCriarFamilia()">+ Criar Nova Família</button></div></div>';
+  document.getElementById('app').innerHTML = html;
+}
+
+function mostrarCriarFamilia(){
+  document.getElementById('app').innerHTML = `
+    <div class="content">
+      <div class="card">
+        <h2>Criar Família</h2>
+        <input id="famNome" class="input" placeholder="Nome da família">
+        <input id="famPin" type="password" class="input" placeholder="PIN de 4 dígitos" maxlength="4">
+        <button class="btn" onclick="criarFamilia()">Criar</button>
+        <button class="btn btn-sec" onclick="mostrarSelecaoFamilia()">Voltar</button>
+      </div>
+    </div>
+  `;
+}
+
+async function criarFamilia(){
+  const nome = document.getElementById('famNome').value;
+  const pin = document.getElementById('famPin').value;
+  if(pin.length !== 4) return alert('PIN deve ter 4 dígitos');
+  const pinHash = btoa(pin); // Simples pra demo, usa bcrypt em prod
+  const {data, error} = await supabase.from('families').insert({
+    trip_id: viagemAtual.id, name: nome, pin_hash: pinHash, created_by: usuario.id
+  }).select().single();
+  if(error) return alert('Erro: ' + error.message);
+  await entrarFamilia(data.id, data.name);
+}
+
+async function entrarFamilia(familiaId, familiaNome){
+  const pin = prompt('Digite o PIN da família ' + familiaNome);
+  if(!pin) return;
+  const {data: fam} = await supabase.from('families').select('*').eq('id', familiaId).single();
+  if(btoa(pin) !== fam.pin_hash) return alert('PIN incorreto');
+  familiaAtual = fam;
+  sessaoValida = true;
+  localStorage.setItem('familia_sessao', JSON.stringify({
+    familia: fam, expira: Date.now() + 7*24*60*60*1000
+  }));
+  mostrarAbas();
+}
+
+function mostrarAbas(){
+  document.getElementById('app').innerHTML = `
+    <div class="tabs">
+      <button class="tab active" onclick="aba('parques', this)">Parques</button>
+      <button class="tab" onclick="aba('voos', this)">Voos</button>
+      <button class="tab" onclick="aba('hospedagem', this)">Hospedagem</button>
+      <button class="tab" onclick="aba('transporte', this)">Transporte</button>
+      <button class="tab" onclick="aba('alarmes', this)">Alarmes</button>
+      <button class="tab" onclick="aba('docs', this)">Documentos</button>
+    </div>
+    <div class="content" id="conteudo"></div>
+  `;
+  aba('parques', document.querySelector('.tab.active'));
+}
+
+async function aba(nome, el){
+  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+  if(el) el.classList.add('active');
+  document.getElementById('conteudo').innerHTML = '<div class="loading">Carregando...</div>';
+  if(nome === 'parques') await carregarParques();
+  else if(nome === 'voos') document.getElementById('conteudo').innerHTML = '<div class="card"><h2>✈️ Voos</h2><p>Em breve. Use Parques como exemplo.</p></div>';
+  else if(nome === 'hospedagem') document.getElementById('conteudo').innerHTML = '<div class="card"><h2>🏨 Hospedagem</h2><p>Em breve. Use Parques como exemplo.</p></div>';
+  else if(nome === 'transporte') document.getElementById('conteudo').innerHTML = '<div class="card"><h2>🚐 Transporte</h2><p>Em breve. Use Parques como exemplo.</p></div>';
+  else if(nome === 'alarmes') await carregarAlarmes();
+  else if(nome === 'docs') document.getElementById('conteudo').innerHTML = '<div class="card"><h2>📄 Documentos</h2><p>Cadastre CPF/RG dos membros aqui.</p></div>';
+}
+
+async function carregarParques(){
+  const {data: atracoes} = await supabase.from('public_attraction_summary').select('*').eq('trip_id', viagemAtual.id);
+  const agrupado = {};
+  atracoes?.forEach(a=>{ 
+    if(!agrupado[a.attraction_id]) agrupado[a.attraction_id] = {id: a.attraction_id, nome: a.nome, data: a.data, horario: a.horario, local: a.local, familias: []}; 
+    if(a.family_name) agrupado[a.attraction_id].familias.push({nome: a.family_name, qtd: a.quantidade}); 
+  });
+  let html = '<h2>🎢 Parques e Atrações</h2><button class="btn" onclick="novaAtracao()">+ Nova Atração</button>';
+  if(Object.keys(agrupado).length === 0) html += '<div class="card"><p>Nenhuma atração cadastrada ainda.</p></div>';
+  Object.values(agrupado).forEach(a=>{ 
+    const total = a.familias.reduce((s,f)=>s+f.qtd, 0); 
+    html += `<div class="card"><h3>${a.nome}</h3><p>⏰ ${a.data || ''} às ${a.horario || '--:--'} - ${a.local || 'Local a definir'}</p><div class="public-counter">${a.familias.map(f=>'👨‍👩‍👧‍👦 '+f.nome+': '+f.qtd+' pessoas').join('<br>')}<br><strong>Total: ${total} ingressos</strong></div><button class="btn" onclick="participarAtracao('${a.id}','${a.nome}')">Participar desta atração</button></div>`; 
+  });
+  document.getElementById('conteudo').innerHTML = html;
+}
+
+function novaAtracao(){
+  document.getElementById('modalNovaAtracao').classList.add('show');
+}
+
+async function salvarNovaAtracao(){
+  const nome = document.getElementById('atrNome').value;
+  const data = document.getElementById('atrData').value;
+  const hora = document.getElementById('atrHora').value;
+  const local = document.getElementById('atrLocal').value;
+  const {error} = await supabase.from('attractions').insert({
+    trip_id: viagemAtual.id, nome, data, horario: hora, local, created_by: usuario.id
+  });
+  if(error) return alert('Erro: ' + error.message);
+  alert('Atração criada! Alarme 30min antes será gerado automático.');
+  fecharModal('modalNovaAtracao');
+  carregarParques();
+}
+
+async function participarAtracao(atracaoId, nomeAtracao){
+  atracaoSelecionadaId = atracaoId;
+  atracaoSelecionada = nomeAtracao;
+  document.getElementById('tituloParticipar').textContent = nomeAtracao;
+  const {data: membros} = await supabase.from('members').select('*').eq('family_id', familiaAtual.id);
+  if(!membros || membros.length === 0) return alert('Cadastre membros da família primeiro na aba Documentos');
+  let html = '<p>Selecione quem vai:</p>';
+  membros.forEach(m=>{ 
+    html += `<div class="checkbox"><input type="checkbox" id="mem_${m.id}" checked><label for="mem_${m.id}">${m.name}</label></div>`; 
+  });
+  document.getElementById('listaMembros').innerHTML = html;
+  document.getElementById('modalParticipar').classList.add('show');
+}
+
+async function salvarParticipacao(){ 
+  const {data: membros} = await supabase.from('members').select('*').eq('family_id', familiaAtual.id);
+  const selecionados = membros.filter(m => document.getElementById('mem_'+m.id).checked);
+  for(const m of selecionados){
+    await supabase.from('attraction_tickets').upsert({
+      attraction_id: atracaoSelecionadaId, member_id: m.id
+    });
+  }
+  alert('Participação salva! Alarme 30min antes criado automático.'); 
+  fecharModal('modalParticipar'); 
+  carregarParques(); 
+}
+
+async function carregarAlarmes(){
+  const {data: alarmes} = await supabase.from('alarms').select('*').eq('trip_id', viagemAtual.id).order('data_hora');
+  let html = '<h2>🔔 Alarmes</h2>';
+  if(!alarmes || alarmes.length === 0) html += '<div class="card"><p>Nenhum alarme ativo. Crie uma atração com horário.</p></div>';
+  alarmes?.forEach(a=>{
+    const dt = new Date(a.data_hora);
+    html += `<div class="card"><h3>${a.titulo}</h3><p>⏰ ${dt.toLocaleString('pt-BR')}</p><p>${a.descricao}</p></div>`;
+  });
+  document.getElementById('conteudo').innerHTML = html;
+}
+
+async function abrirSOS(){
+  if(!sessaoValida) return alert('Faça login na família primeiro');
+  const {data: membros} = await supabase.from('members').select('*').eq('family_id', familiaAtual.id).limit(1);
+  if(!membros || membros.length === 0) return alert('Cadastre membros na aba Documentos primeiro');
+  const eu = membros[0];
+  document.getElementById('dadosSOS').innerHTML = `
+    <p><strong>${eu.name}</strong></p>
+    <p>🚨 Emergência: ${eu.emergencia_nome || 'Não cadastrado'} - ${eu.emergencia_fone || ''}</p>
+    <p>💊 Info Médica: ${eu.info_medica || 'Não informado'}</p>
+    <p style="margin-top:16px;font-size:14px">Mostre esta tela para socorristas</p>
+  `;
+  document.getElementById('modalSOS').classList.add('show');
+}
+
+function fecharModal(id){ document.getElementById(id).classList.remove('show'); }
+</script>
+</body>
+</html>
