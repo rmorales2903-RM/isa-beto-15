@@ -547,10 +547,15 @@
       return phone ? `<a class="btn secondary small" href="${waHref(phone)}" target="_blank">${label}</a>` : '';
     }
     function renderMaps(address){
-      return address ? `<a class="btn secondary small" href="https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(address)}" target="_blank" rel="noopener noreferrer">Abrir no Maps</a>` : '';
+      return address ? `<a class="btn secondary small" href="https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(address)}" target="_blank" rel="noopener noreferrer">Abrir no Maps</a>` : '';
     }
     function renderOpenOriginal(url, label='Abrir original'){
-      return url ? `<a class="btn secondary small" href="${url}" target="_blank">${label}</a>` : '';
+      return url ? `<a class="btn small" href="${url}" target="_blank" rel="noopener noreferrer">${label}</a>` : '';
+    }
+    function renderDocViewer(url, emptyText){
+      return url
+        ? `<div class="inline-actions" style="margin:8px 0 10px">${renderOpenOriginal(url,'Abrir original')}</div><div class="media-box"><iframe class="viewer-iframe" src="${url}"></iframe></div>`
+        : `<div class="fine">${emptyText}</div>`;
     }
     function entityMeta(){
       try{return JSON.parse(localStorage.getItem('vg_entity_meta')||'{}')}catch(e){return {}}
@@ -620,7 +625,7 @@
     function renderTransporte(){
       const card = baseSection('Transporte', 'Translados visíveis para todo o grupo, com responsável e WhatsApp clicável.');
       const providerOptions = state.cache.transportProviders.map(p=>`<option value="${p.id}">${escapeHtml(p.empresa)}${p.responsavel ? ' — '+escapeHtml(p.responsavel):''}</option>`).join('');
-      const hotelOptions = state.cache.hotels.map(h=>`<option value="${escapeHtml(h.nome)}">${escapeHtml(h.nome)}${h.endereco ? ' — '+escapeHtml(h.endereco):''}</option>`).join('');
+      const hotelOptions = state.cache.hotels.map(h=>`<option value="${h.id}">${escapeHtml(h.nome)}${h.endereco ? ' — '+escapeHtml(h.endereco):''}</option>`).join('');
 
       const providerCard = el('div','card');
       providerCard.innerHTML = `
@@ -653,7 +658,8 @@
         <div class="field"><label>Data e hora</label><input id="fTransferData" type="datetime-local"></div>
         <div class="field"><label>Responsável cadastrado</label><select id="fTransferProvider"><option value="">Selecione</option>${providerOptions}</select></div>
         <div class="field"><label>Origem</label><input id="fTransferOrigem" placeholder="Aeroporto NVT"></div>
-        <div class="field"><label>Destino</label><input id="fTransferDestino" list="hotelDestinationList" placeholder="Escolha uma hospedagem ou digite outro destino"><datalist id="hotelDestinationList">${hotelOptions}</datalist></div>
+        <div class="field"><label>Hospedagem cadastrada</label><select id="fTransferHotel"><option value="">Selecione uma hospedagem</option>${hotelOptions}</select></div>
+        <div class="field"><label>Outro destino</label><input id="fTransferDestinoManual" placeholder="Se não for hospedagem, digite aqui"></div>
         <div class="field"><label>WhatsApp</label><input id="fTransferContato" placeholder="Preenchido pelo responsável"></div>
         <div class="field"><label>Placa</label><input id="fTransferPlaca" placeholder="ABC-1234"></div>
         <div class="field" style="grid-column:1/-1"><label>Observações</label><textarea id="fTransferObs" placeholder="Parada no mercado, cadeirinha, bagagens..."></textarea></div>`;
@@ -663,6 +669,12 @@
         if(!p) return;
         $('#fTransferContato').value = p.whatsapp || '';
       };
+      const hotelSelect = form.querySelector('#fTransferHotel');
+      hotelSelect.onchange = ()=>{
+        const h = state.cache.hotels.find(x=>x.id===hotelSelect.value);
+        if(!h) return;
+        $('#fTransferDestinoManual').value = `${h.nome}${h.endereco ? ' — '+h.endereco : ''}`;
+      };
       const btn = el('button','btn','Adicionar translado');
       btn.onclick = async ()=>{
         const provider = state.cache.transportProviders.find(x=>x.id===$('#fTransferProvider').value);
@@ -671,7 +683,7 @@
           data_hora: $('#fTransferData').value,
           responsavel: provider ? `${provider.empresa}${provider.responsavel ? ' - '+provider.responsavel:''}` : '',
           origem: $('#fTransferOrigem').value.trim(),
-          destino: $('#fTransferDestino').value.trim(),
+          destino: ($('#fTransferDestinoManual').value.trim() || (()=>{ const h = state.cache.hotels.find(x=>x.id===$('#fTransferHotel').value); return h ? `${h.nome}${h.endereco ? ' — '+h.endereco : ''}` : ''; })()),
           contato: $('#fTransferContato').value.trim() || provider?.whatsapp || '',
           placa: $('#fTransferPlaca').value.trim(),
           obs: $('#fTransferObs').value.trim()
@@ -801,7 +813,7 @@
         <div class="field"><label>Enviar / atualizar comprovante da hospedagem</label><input id="uploadHotelVoucher" type="file" accept=".pdf,image/*"></div>
         <div class="btn-row" style="margin-top:10px"><button class="btn" id="btnSaveHotelVoucher">Salvar comprovante</button></div>
         <div class="divider"></div>
-        <div class="media-box">${voucherDoc?.arquivo_url ? `<iframe class="viewer-iframe" src="${voucherDoc.arquivo_url}"></iframe>` : 'Nenhum voucher enviado ainda para sua família.'}</div>
+        ${renderDocViewer(voucherDoc?.arquivo_url, 'Nenhum voucher enviado ainda para sua família.')}
       `);
       $('#btnSaveHotelVoucher').onclick = async ()=>{
         const file = $('#uploadHotelVoucher').files[0];
@@ -826,8 +838,7 @@
           ${docs.map(g=>`
             <div class="item">
               <b>${escapeHtml(g.name)}</b>
-              <div class="inline-actions" style="margin:8px 0">${renderOpenOriginal(g.cpf_file_url)}</div>
-              <div class="media-box">${g.cpf_file_url ? `<iframe class="viewer-iframe" src="${g.cpf_file_url}"></iframe>` : 'CPF não enviado.'}</div>
+              ${renderDocViewer(g.cpf_file_url, 'CPF não enviado.')}
             </div>`).join('') || '<div class="empty">Nenhum hóspede da sua família nesta reserva.</div>'}
         </div>
       `);
@@ -1355,8 +1366,8 @@ END:VCALENDAR`;
             <button class="btn secondary small">Editar documentos</button>
           </div>
           <div class="split" style="margin-top:12px">
-            <div><div class="fine">CPF</div><div class="inline-actions" style="margin:8px 0">${renderOpenOriginal(m.cpf_file_url)}</div><div class="media-box">${m.cpf_file_url ? `<iframe class="viewer-iframe" src="${m.cpf_file_url}"></iframe>` : 'CPF não enviado.'}</div></div>
-            <div><div class="fine">RG</div><div class="inline-actions" style="margin:8px 0">${renderOpenOriginal(m.rg_file_url)}</div><div class="media-box">${m.rg_file_url ? `<iframe class="viewer-iframe" src="${m.rg_file_url}"></iframe>` : 'RG não enviado.'}</div></div>
+            <div><div class="fine">CPF</div>${renderDocViewer(m.cpf_file_url, 'CPF não enviado.')}</div>
+            <div><div class="fine">RG</div>${renderDocViewer(m.rg_file_url, 'RG não enviado.')}</div>
           </div>`;
         item.querySelector('button').onclick = ()=> openMemberDocsEditor(m);
         list.appendChild(item);
