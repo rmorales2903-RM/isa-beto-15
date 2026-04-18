@@ -497,8 +497,11 @@
 
       const tabsWrap = $('#tabs');
       tabsWrap.innerHTML = '';
+      const unreadChat = getChatUnreadCount();
       tabs.forEach(t=>{
-        const b = el('button', 'tab' + (state.currentTab===t.id?' active':''), t.label);
+        const label = t.id==='chat' && unreadChat>0 ? `${t.label} (${unreadChat})` : t.label;
+        const b = el('button', 'tab' + (state.currentTab===t.id?' active':''), label);
+        if(t.id==='chat' && unreadChat>0 && state.currentTab!=='chat') b.style.background = '#dc2626';
         b.onclick = ()=> { state.currentTab = t.id; renderApp(); };
         tabsWrap.appendChild(b);
       });
@@ -562,8 +565,56 @@
       return [...document.querySelectorAll(`input[name="${name}"]:checked`)].map(i=>i.value);
     }
     function flightPassengers(flightId){
-      const ids = state.cache.flightPassengers.filter(fp=>fp.flight_id===flightId).map(fp=>fp.member_id);
-      return state.cache.members.filter(m=>ids.includes(m.id));
+      const ids = new Set([
+        ...state.cache.flightPassengers.filter(fp=>fp.flight_id===flightId).map(fp=>fp.member_id),
+        ...state.cache.flightTickets.filter(t=>t.flight_id===flightId).map(t=>t.member_id)
+      ]);
+      return state.cache.members.filter(m=>ids.has(m.id));
+    }
+    function getChatSeenKey(){ return state.currentTrip ? `vg_chat_seen_${state.currentTrip.id}` : 'vg_chat_seen'; }
+    function getChatUnreadCount(){
+      if(!state.currentTrip) return 0;
+      const lastSeen = localStorage.getItem(getChatSeenKey()) || '';
+      return state.cache.messages.filter(m=> (m.created_at||'') > lastSeen).length;
+    }
+    function markChatAsRead(){
+      if(!state.currentTrip || !state.cache.messages.length) return;
+      const latest = state.cache.messages[state.cache.messages.length-1]?.created_at;
+      if(latest) localStorage.setItem(getChatSeenKey(), latest);
+    }
+    function getRateioConfig(){
+      if(!state.currentTrip) return {participants:[]};
+      try{ return JSON.parse(localStorage.getItem(`vg_rateio_cfg_${state.currentTrip.id}`)||'{"participants":[]}'); }catch(e){ return {participants:[]}; }
+    }
+    function setRateioConfig(cfg){
+      if(!state.currentTrip) return;
+      localStorage.setItem(`vg_rateio_cfg_${state.currentTrip.id}`, JSON.stringify(cfg||{participants:[]}));
+    }
+    function calculateRateioSettlement(participantIds){
+      const selected = (participantIds||[]).filter(Boolean);
+      const total = state.cache.expenses.reduce((sum,e)=> sum + Number(e.valor||0), 0);
+      const count = selected.length;
+      const perPerson = count ? Number((total / count).toFixed(2)) : 0;
+      const balances = state.cache.members.filter(m=> selected.includes(m.id)).map(m=>{
+        const paid = Number(state.cache.expenses.filter(e=>e.pago_por===m.id).reduce((sum,e)=> sum + Number(e.valor||0), 0).toFixed(2));
+        const balance = Number((paid - perPerson).toFixed(2));
+        return {id:m.id, name:m.name, pix:m.pix_key||'', paid, share:perPerson, balance};
+      });
+      const creditors = balances.filter(b=>b.balance>0).map(b=>({...b, amount:b.balance}));
+      const debtors = balances.filter(b=>b.balance<0).map(b=>({...b, amount:Math.abs(b.balance)}));
+      const settlements=[];
+      let i=0; let j=0;
+      while(i<debtors.length && j<creditors.length){
+        const amt = Math.min(debtors[i].amount, creditors[j].amount);
+        if(amt>0.009){
+          settlements.push({from:debtors[i], to:creditors[j], amount:Number(amt.toFixed(2))});
+          debtors[i].amount = Number((debtors[i].amount - amt).toFixed(2));
+          creditors[j].amount = Number((creditors[j].amount - amt).toFixed(2));
+        }
+        if(debtors[i].amount<=0.009) i+=1;
+        if(creditors[j].amount<=0.009) j+=1;
+      }
+      return {total:Number(total.toFixed(2)), count, perPerson, balances, settlements};
     }
 
     function renderCurrentTab(){
@@ -896,6 +947,7 @@
               <div class="fine">Reserva: ${escapeHtml(reserva)}</div>
               <div class="fine" style="margin:8px 0 6px">Clique no passageiro para abrir passagem + documento:</div>
               <div class="inline-actions">${pax.map(p=>`<button class="btn secondary small pax-btn" data-member="${p.id}">${escapeHtml(p.name)} • Passagem + CPF</button>`).join('') || '<span class="fine">Sem passageiros vinculados.</span>'}</div>
+              <div class="fine" style="margin-top:8px">Se o botão do passageiro aparecer, é por ali que você envia a passagem individual e visualiza junto com o CPF.</div>
             </div>
           </div>`;
         item.querySelectorAll('.pax-btn').forEach(b=> b.onclick = ()=> openFlightMember(f.id, b.dataset.member));
@@ -921,6 +973,7 @@
             <div class="fine">Localizador: ${escapeHtml(ticket?.localizador || '')}</div>
             <div class="divider"></div>
             <div class="field"><label>Enviar / atualizar passagem</label><input id="uploadFlightTicket" type="file" accept=".pdf,image/*"></div>
+            <div class="field"><label>Localizador / reserva</label><input id="flightTicketLocator" value="${escapeHtml(ticket?.localizador || flight.localizador || flight.numero_reserva || '')}" placeholder="ABC123"></div>
             <div class="btn-row" style="margin-top:10px"><button class="btn" id="btnSaveFlightTicket">Salvar passagem</button></div>
             <div class="inline-actions" style="margin-top:10px">${renderOpenOriginal(ticket?.ticket_url)}</div>
             <div class="divider"></div>
@@ -935,7 +988,7 @@
           </div>
         </div>
       `);
-      $('#btnSaveFlightTicket').onclick = ()=> saveFlightTicket(flightId, memberId, $('#uploadFlightTicket').files[0], ticket?.localizador || '');
+      $('#btnSaveFlightTicket').onclick = ()=> saveFlightTicket(flightId, memberId, $('#uploadFlightTicket').files[0], $('#flightTicketLocator').value.trim());
     }
 
     async function saveFlightTicket(flightId, memberId, file, localizador=''){
@@ -1215,7 +1268,7 @@ END:VCALENDAR`;
     }
 
     function renderRateios(){
-      const card = baseSection('Rateios', 'Gastos comuns com cálculo automático. Saldo positivo = tem a receber. Saldo negativo = deve pagar.');
+      const card = baseSection('Rateios', 'Guarde todos os gastos e depois faça a divisão final. Quem pagou acima da média tem a receber; quem pagou abaixo da média deve fazer PIX.');
       const memberOptions = state.cache.members.map(m=>`<option value="${m.id}">${escapeHtml(m.name)}</option>`).join('');
       const form = el('div','form-grid');
       form.innerHTML = `
@@ -1224,14 +1277,14 @@ END:VCALENDAR`;
         <div class="field"><label>Data</label><input id="fExpenseDate" type="date"></div>
         <div class="field"><label>Pago por</label><select id="fExpensePayer"><option value="">Selecione</option>${memberOptions}</select></div>
         <div class="field"><label>Categoria</label><input id="fExpenseCategory" placeholder="Transporte, mercado, ingresso..."></div>
-        <div class="field" style="grid-column:1/-1"><label>Dividir com</label><div id="fExpenseSplitChecks" class="grid grid-3">${state.cache.members.map(m=>`<label class="item" style="padding:10px"><input type="checkbox" name="expenseSplit" value="${m.id}"> ${escapeHtml(m.name)}</label>`).join("")}</div></div>
+        <div class="field" style="grid-column:1/-1"><label>Quem entra nesta conta (registro)</label><div id="fExpenseSplitChecks" class="grid grid-3">${state.cache.members.map(m=>`<label class="item" style="padding:10px"><input type="checkbox" name="expenseSplit" value="${m.id}"> ${escapeHtml(m.name)}</label>`).join("")}</div></div>
         <div class="field" style="grid-column:1/-1"><label>Comprovante (opcional)</label><input id="fExpenseProof" type="file" accept=".pdf,image/*"></div>
       `;
       const btn = el('button','btn','Salvar gasto');
       btn.onclick = async ()=>{
         const val = Number($('#fExpenseValue').value || 0);
         const splitIds = checkedValues('expenseSplit');
-        if(!$('#fExpenseDesc').value.trim() || !val || !$('#fExpensePayer').value || !splitIds.length) return showToast('Preencha descrição, valor, pagador e participantes.');
+        if(!$('#fExpenseDesc').value.trim() || !val || !$('#fExpensePayer').value) return showToast('Preencha descrição, valor e quem pagou.');
         const payload = {
           trip_id: state.currentTrip.id,
           descricao: $('#fExpenseDesc').value.trim(),
@@ -1248,19 +1301,20 @@ END:VCALENDAR`;
         }
         const expenseInsert = await state.supabase.from('expenses').insert(payload).select('id').single();
         if(expenseInsert.error || !expenseInsert.data?.id) return showToast(expenseInsert.error?.message || 'Não foi possível salvar o gasto.');
-
-        const total = Math.round(val * 100);
-        const base = Math.floor(total / splitIds.length);
-        let remainder = total - (base * splitIds.length);
-        const splits = splitIds.map(id=>{
-          const extra = remainder > 0 ? 1 : 0;
-          if(remainder > 0) remainder--;
-          return {expense_id: expenseInsert.data.id, member_id: id, valor_dividido: Number(((base + extra) / 100).toFixed(2))};
-        });
-        const splitInsert = await state.supabase.from('expense_splits').insert(splits);
-        if(splitInsert.error){
-          await state.supabase.from('expenses').delete().eq('id', expenseInsert.data.id);
-          return showToast(splitInsert.error.message || 'Não foi possível salvar a divisão do gasto.');
+        if(splitIds.length){
+          const total = Math.round(val * 100);
+          const base = Math.floor(total / splitIds.length);
+          let remainder = total - (base * splitIds.length);
+          const splits = splitIds.map(id=>{
+            const extra = remainder > 0 ? 1 : 0;
+            if(remainder > 0) remainder -= 1;
+            return {expense_id: expenseInsert.data.id, member_id: id, valor_dividido: Number(((base + extra) / 100).toFixed(2))};
+          });
+          const splitInsert = await state.supabase.from('expense_splits').insert(splits);
+          if(splitInsert.error){
+            await state.supabase.from('expenses').delete().eq('id', expenseInsert.data.id);
+            return showToast(splitInsert.error.message || 'Não foi possível salvar os participantes do gasto.');
+          }
         }
         $('#fExpenseDesc').value=''; $('#fExpenseValue').value=''; $('#fExpenseDate').value=''; $('#fExpensePayer').value=''; $('#fExpenseCategory').value=''; $('#fExpenseProof').value='';
         document.querySelectorAll('input[name="expenseSplit"]').forEach(i=> i.checked = false);
@@ -1268,20 +1322,47 @@ END:VCALENDAR`;
       };
       card.append(form, btn, el('div','divider'));
 
-      const balances = {};
-      state.cache.members.forEach(m=> balances[m.id] = {name:m.name, paid:0, share:0, balance:0, pix:m.pix_key || ''});
-      state.cache.expenses.forEach(e=> { if(balances[e.pago_por]) balances[e.pago_por].paid += Number(e.valor||0); });
-      state.cache.expenseSplits.forEach(s=> { if(balances[s.member_id]) balances[s.member_id].share += Number(s.valor_dividido||0); });
-      Object.values(balances).forEach(b=> b.balance = Number((b.paid - b.share).toFixed(2)));
+      const cfg = getRateioConfig();
+      const chosen = cfg.participants?.length ? cfg.participants : state.cache.members.map(m=>m.id);
+      const settleBox = el('div','form-grid');
+      settleBox.innerHTML = `
+        <div class="field" style="grid-column:1/-1"><label>Quem participa da divisão final dos gastos</label><div class="grid grid-3">${state.cache.members.map(m=>`<label class="item" style="padding:10px"><input type="checkbox" name="rateioParticipants" value="${m.id}" ${chosen.includes(m.id)?'checked':''}> ${escapeHtml(m.name)}</label>`).join('')}</div></div>
+      `;
+      const calcBtn = el('button','btn','Fazer a divisão dos gastos');
+      calcBtn.onclick = ()=>{
+        const participants = checkedValues('rateioParticipants');
+        if(!participants.length) return showToast('Selecione pelo menos uma pessoa para participar da divisão.');
+        setRateioConfig({participants});
+        renderApp();
+      };
+      card.append(settleBox, calcBtn, el('div','divider'));
+
+      const result = calculateRateioSettlement(chosen);
+      const header = el('div','grid grid-3');
+      header.innerHTML = `
+        <div class="stat"><div class="fine">Total gasto</div><div class="kpi" style="font-size:22px">${formatMoney(result.total)}</div></div>
+        <div class="stat"><div class="fine">Participantes da divisão</div><div class="kpi" style="font-size:22px">${result.count}</div></div>
+        <div class="stat"><div class="fine">Cota por pessoa</div><div class="kpi" style="font-size:22px">${formatMoney(result.perPerson)}</div></div>`;
+      card.append(header);
 
       const summary = el('div','grid grid-3');
-      Object.values(balances).forEach(b=>{
+      result.balances.forEach(b=>{
         const status = b.balance > 0 ? `Tem a receber ${formatMoney(b.balance)}` : b.balance < 0 ? `Deve pagar ${formatMoney(Math.abs(b.balance))}` : 'Quitado';
         const it = el('div','stat');
-        it.innerHTML = `<div class="fine">${escapeHtml(b.name)}</div><div class="kpi" style="font-size:22px">${formatMoney(b.balance)}</div><div class="fine">Pagou ${formatMoney(b.paid)} • Participa ${formatMoney(b.share)}</div><div class="fine"><b>${status}</b></div>`;
+        it.innerHTML = `<div class="fine">${escapeHtml(b.name)}</div><div class="kpi" style="font-size:22px">${formatMoney(b.balance)}</div><div class="fine">Pagou ${formatMoney(b.paid)} • Deveria pagar ${formatMoney(b.share)}</div><div class="fine"><b>${status}</b></div>`;
         summary.appendChild(it);
       });
       card.append(summary, el('div','divider'));
+
+      const settlementList = el('div','list');
+      if(!result.settlements.length) settlementList.innerHTML = '<div class="empty">Sem acertos pendentes. Quando alguém paga mais do que a média, o sistema mostra aqui quem deve fazer PIX para quem.</div>';
+      result.settlements.forEach(s=>{
+        const item = el('div','item');
+        item.innerHTML = `<div class="item-head"><div><b>${escapeHtml(s.from.name)}</b> deve fazer PIX de <b>${formatMoney(s.amount)}</b> para <b>${escapeHtml(s.to.name)}</b></div>${s.to.pix ? `<button class="btn secondary small">Copiar PIX</button>`:''}</div>`;
+        if(s.to.pix) item.querySelector('button').onclick = async ()=>{ try{ await navigator.clipboard.writeText(s.to.pix); showToast('Chave PIX copiada.'); }catch(e){ showToast(s.to.pix); } };
+        settlementList.appendChild(item);
+      });
+      card.append(el('h3','', 'Acerto final'), settlementList, el('div','divider'));
 
       const list = el('div','list');
       if(!state.cache.expenses.length) list.innerHTML = '<div class="empty">Nenhum gasto comum cadastrado.</div>';
@@ -1294,17 +1375,18 @@ END:VCALENDAR`;
             <div>
               <b>${escapeHtml(e.descricao)}</b>
               <div class="fine">${formatMoney(e.valor)} • ${formatDate(e.data)} • Pagou: ${escapeHtml(payer?.name || '-')}</div>
-              <div class="fine">Divide com: ${escapeHtml(participants.join(', '))}</div>
+              <div class="fine">Participaram desta conta: ${participants.length ? escapeHtml(participants.join(', ')) : 'Não informado'}</div>
               ${e.comprovante_url ? `<div class="inline-actions"><a class="btn secondary small" href="${e.comprovante_url}" target="_blank">Abrir comprovante</a></div>`:''}
             </div>
           </div>`;
         list.appendChild(item);
       });
-      card.append(list);
+      card.append(el('h3','', 'Histórico de gastos'), list);
       mount(card);
     }
 
     function renderChat(){
+      markChatAsRead();
       const card = baseSection('Chat', 'Recados rápidos do grupo.');
       const input = el('textarea');
       input.placeholder = 'Escreva um recado para o grupo...';
