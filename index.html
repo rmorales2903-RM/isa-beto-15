@@ -592,84 +592,50 @@
     }
     function calculateRateioSettlement(){
       const balancesMap = {};
-      state.cache.members.forEach(m => {
-        balancesMap[m.id] = {
-          id: m.id,
-          name: m.name,
-          pix: m.pix_key || '',
-          paid: 0,
-          share: 0,
-          balance: 0
-        };
+      state.cache.members.forEach(m=>{
+        balancesMap[m.id] = {id:m.id, name:m.name, pix:m.pix_key||'', paid:0, share:0, balance:0};
       });
-
       let total = 0;
 
-      state.cache.expenses.forEach(exp => {
+      state.cache.expenses.forEach(exp=>{
         const amount = Number(exp.valor || 0);
         total += amount;
+        if(balancesMap[exp.pago_por]) balancesMap[exp.pago_por].paid = Number((balancesMap[exp.pago_por].paid + amount).toFixed(2));
 
-        if (balancesMap[exp.pago_por]) {
-          balancesMap[exp.pago_por].paid = Number((balancesMap[exp.pago_por].paid + amount).toFixed(2));
-        }
-
-        const splits = state.cache.expenseSplits.filter(s => s.expense_id === exp.id);
-        splits.forEach(split => {
+        const splits = state.cache.expenseSplits.filter(s=>s.expense_id===exp.id);
+        splits.forEach(split=>{
           const part = Number(split.valor_dividido || 0);
-          if (balancesMap[split.member_id]) {
-            balancesMap[split.member_id].share = Number((balancesMap[split.member_id].share + part).toFixed(2));
-          }
+          if(balancesMap[split.member_id]) balancesMap[split.member_id].share = Number((balancesMap[split.member_id].share + part).toFixed(2));
         });
       });
 
       const balances = Object.values(balancesMap)
-        .filter(b => b.paid > 0 || b.share > 0)
-        .map(b => {
-          b.balance = Number((b.paid - b.share).toFixed(2));
-          return b;
-        });
+        .filter(b=>b.paid > 0 || b.share > 0)
+        .map(b=>({ ...b, balance: Number((b.paid - b.share).toFixed(2)) }));
 
-      const creditors = balances
-        .filter(b => b.balance > 0.009)
-        .map(b => ({...b, amount: Number(b.balance.toFixed(2))}));
-
-      const debtors = balances
-        .filter(b => b.balance < -0.009)
-        .map(b => ({...b, amount: Number(Math.abs(b.balance).toFixed(2))}));
-
+      const creditors = balances.filter(b=>b.balance>0.009).map(b=>({...b, amount:Number(b.balance.toFixed(2))}));
+      const debtors = balances.filter(b=>b.balance<-0.009).map(b=>({...b, amount:Number(Math.abs(b.balance).toFixed(2))}));
       const settlements = [];
-      let i = 0;
-      let j = 0;
-
-      while (i < debtors.length && j < creditors.length) {
+      let i=0, j=0;
+      while(i<debtors.length && j<creditors.length){
         const amt = Math.min(debtors[i].amount, creditors[j].amount);
-        if (amt > 0.009) {
-          settlements.push({
-            from: debtors[i],
-            to: creditors[j],
-            amount: Number(amt.toFixed(2))
-          });
+        if(amt>0.009){
+          settlements.push({from:debtors[i], to:creditors[j], amount:Number(amt.toFixed(2))});
           debtors[i].amount = Number((debtors[i].amount - amt).toFixed(2));
           creditors[j].amount = Number((creditors[j].amount - amt).toFixed(2));
         }
-        if (debtors[i].amount <= 0.009) i += 1;
-        if (creditors[j].amount <= 0.009) j += 1;
+        if(debtors[i].amount<=0.009) i+=1;
+        if(creditors[j].amount<=0.009) j+=1;
       }
 
-      const participantsCount = new Set(state.cache.expenseSplits.map(s => s.member_id)).size;
-      const totalShare = balances.reduce((sum, b) => sum + Number(b.share || 0), 0);
+      const participantsCount = new Set(state.cache.expenseSplits.map(s=>s.member_id)).size;
+      const totalShare = balances.reduce((sum,b)=>sum + Number(b.share||0), 0);
       const avgShare = participantsCount ? Number((totalShare / participantsCount).toFixed(2)) : 0;
 
-      return {
-        total: Number(total.toFixed(2)),
-        count: participantsCount,
-        perPerson: avgShare,
-        balances,
-        settlements
-      };
+      return {total:Number(total.toFixed(2)), count:participantsCount, perPerson:avgShare, balances, settlements};
     }
 
-    function renderCurrentTab(){
+function renderCurrentTab(){
       const c = $('#tabContent');
       const renderers = {
         roteiro: renderRoteiro, transporte: renderTransporte, hospedagem: renderHospedagem, voos: renderVoos,
@@ -1332,7 +1298,7 @@ END:VCALENDAR`;
     }
 
     function renderRateios(){
-      const card = baseSection('Rateios', 'Lance o gasto, escolha quem vai dividir e o sistema calcula automaticamente quem deve pagar e quem tem a receber.');
+      const card = baseSection('Rateios', 'Lance o gasto, escolha quem pagou e marque somente quem vai dividir esse gasto.');
       const memberOptions = state.cache.members.map(m=>`<option value="${m.id}">${escapeHtml(m.name)}</option>`).join('');
       const form = el('div','form-grid');
       form.innerHTML = `
@@ -1395,31 +1361,28 @@ END:VCALENDAR`;
         $('#fExpenseCategory').value='';
         $('#fExpenseProof').value='';
         document.querySelectorAll('input[name="expenseSplit"]').forEach(i=> i.checked = false);
+
         await refreshAll(); renderApp(); showToast('Gasto salvo com sucesso.');
       };
       card.append(form, btn, el('div','divider'));
 
+      const liveCount = () => checkedValues('expenseSplit').length;
+      const liveAmount = () => Number($('#fExpenseValue')?.value || 0);
       const result = calculateRateioSettlement();
-      const header = el('div','grid grid-3');
-      header.innerHTML = `
-        <div class="stat"><div class="fine">Total gasto</div><div class="kpi" style="font-size:22px">${formatMoney(result.total)}</div></div>
-        <div class="stat"><div class="fine">Participantes envolvidos</div><div class="kpi" id="rateioParticipantCount" style="font-size:22px">${result.count}</div></div>
-        <div class="stat"><div class="fine">Média por participante</div><div class="kpi" id="rateioPerPerson" style="font-size:22px">${formatMoney(result.perPerson)}</div></div>`;
-      card.append(header);
 
-      const updateRateioPreview = ()=>{
-        const selectedCount = checkedValues('expenseSplit').length;
-        const currentValue = Number($('#fExpenseValue')?.value || 0);
-        $('#rateioParticipantCount').textContent = String(selectedCount || result.count || 0);
-        if(selectedCount > 0 && currentValue > 0){
-          $('#rateioPerPerson').textContent = formatMoney(currentValue / selectedCount);
-        }else{
-          $('#rateioPerPerson').textContent = formatMoney(result.perPerson);
-        }
+      const header = el('div','grid grid-3');
+      const renderHeader = ()=>{
+        const currentCount = liveCount();
+        const currentPerPerson = currentCount ? Number((liveAmount()/currentCount).toFixed(2)) : 0;
+        header.innerHTML = `
+          <div class="stat"><div class="fine">Total gasto</div><div class="kpi" style="font-size:22px">${formatMoney(result.total)}</div></div>
+          <div class="stat"><div class="fine">Participantes envolvidos</div><div class="kpi" style="font-size:22px">${currentCount || result.count}</div></div>
+          <div class="stat"><div class="fine">Média por participante</div><div class="kpi" style="font-size:22px">${formatMoney(currentCount ? currentPerPerson : result.perPerson)}</div></div>`;
       };
-      document.querySelectorAll('input[name="expenseSplit"]').forEach(i=> i.addEventListener('change', updateRateioPreview));
-      $('#fExpenseValue').addEventListener('input', updateRateioPreview);
-      updateRateioPreview();
+      renderHeader();
+      form.querySelectorAll('input[name="expenseSplit"]').forEach(i=> i.addEventListener('change', renderHeader));
+      form.querySelector('#fExpenseValue').addEventListener('input', renderHeader);
+      card.append(header);
 
       const summary = el('div','grid grid-3');
       result.balances.forEach(b=>{
@@ -1452,7 +1415,7 @@ END:VCALENDAR`;
               <b>${escapeHtml(e.descricao)}</b>
               <div class="fine">${formatMoney(e.valor)} • ${formatDate(e.data)} • Pagou: ${escapeHtml(payer?.name || '-')}</div>
               <div class="fine">Vai dividir com: ${participants.length ? escapeHtml(participants.join(', ')) : 'Não informado'}</div>
-              ${e.comprovante_url ? `<div class="inline-actions"><a class="btn secondary small" href="${e.comprovante_url}" target="_blank">Abrir comprovante</a></div>`:''}
+              ${e.comprovante_url ? `<div class="inline-actions">${renderOpenOriginal(e.comprovante_url, 'Abrir comprovante')}</div>` : ''}
             </div>
             <div class="btn-row"><button class="btn danger small delete-expense">Excluir</button></div>
           </div>`;
@@ -1463,85 +1426,7 @@ END:VCALENDAR`;
       mount(card);
     }
 
-    async function deleteStorageUrl(url){
-      if(!url) return;
-      try{
-        const m = String(url).match(/\/storage\/v1\/object\/public\/([^\/]+)\/(.+)$/);
-        if(!m) return;
-        const bucket = decodeURIComponent(m[1]);
-        const path = decodeURIComponent(m[2]);
-        await state.supabase.storage.from(bucket).remove([path]);
-      }catch(e){}
-    }
-
-    async function deleteExpense(id){
-      if(!confirm('Excluir este gasto?')) return;
-      const exp = state.cache.expenses.find(x=>x.id===id);
-      if(exp?.comprovante_url) await deleteStorageUrl(exp.comprovante_url);
-      await state.supabase.from('expense_splits').delete().eq('expense_id', id);
-      const {error} = await state.supabase.from('expenses').delete().eq('id', id);
-      if(error) return showToast(error.message);
-      await refreshAll(); renderApp(); showToast('Gasto excluído.');
-    }
-
-    async function deleteTransfer(id){
-      if(!confirm('Excluir este translado?')) return;
-      const {error} = await state.supabase.from('transfers').delete().eq('id', id);
-      if(error) return showToast(error.message);
-      await refreshAll(); renderApp(); showToast('Transporte excluído.');
-    }
-
-    async function deleteHotel(id){
-      if(!confirm('Excluir esta hospedagem?')) return;
-      const hotel = state.cache.hotels.find(x=>x.id===id);
-      const docs = state.cache.documents.filter(d=> d.tipo==='hotel_voucher' && d.atracao_nome===hotelRef(id));
-      for(const d of docs){ if(d.arquivo_url) await deleteStorageUrl(d.arquivo_url); }
-      await state.supabase.from('documents').delete().eq('tipo','hotel_voucher').eq('atracao_nome', hotelRef(id));
-      await state.supabase.from('hotel_guests').delete().eq('hotel_id', id);
-      const {error} = await state.supabase.from('hotels').delete().eq('id', id);
-      if(error) return showToast(error.message);
-      await refreshAll(); renderApp(); showToast('Hospedagem excluída.');
-    }
-
-    async function deleteFlight(id){
-      if(!confirm('Excluir este voo?')) return;
-      const tickets = state.cache.flightTickets.filter(t=> t.flight_id===id);
-      for(const t of tickets){ if(t.ticket_url) await deleteStorageUrl(t.ticket_url); }
-      await state.supabase.from('flight_tickets').delete().eq('flight_id', id);
-      await state.supabase.from('flight_passengers').delete().eq('flight_id', id);
-      const {error} = await state.supabase.from('flights').delete().eq('id', id);
-      if(error) return showToast(error.message);
-      await refreshAll(); renderApp(); showToast('Voo excluído.');
-    }
-
-    async function deletePark(id){
-      if(!confirm('Excluir este parque?')) return;
-      const tickets = state.cache.parkTickets.filter(t=> t.park_id===id);
-      for(const t of tickets){ if(t.ticket_url) await deleteStorageUrl(t.ticket_url); }
-      await state.supabase.from('park_tickets').delete().eq('park_id', id);
-      const {error} = await state.supabase.from('parks').delete().eq('id', id);
-      if(error) return showToast(error.message);
-      await refreshAll(); renderApp(); showToast('Parque excluído.');
-    }
-
-    async function deleteAttraction(id){
-      if(!confirm('Excluir esta atração?')) return;
-      const tickets = state.cache.attractionTickets.filter(t=> t.attraction_id===id);
-      for(const t of tickets){ if(t.ticket_url) await deleteStorageUrl(t.ticket_url); }
-      await state.supabase.from('attraction_tickets').delete().eq('attraction_id', id);
-      const {error} = await state.supabase.from('attractions').delete().eq('id', id);
-      if(error) return showToast(error.message);
-      await refreshAll(); renderApp(); showToast('Atração excluída.');
-    }
-
-    async function deleteAlarm(id){
-      if(!confirm('Excluir este alarme manual?')) return;
-      const {error} = await state.supabase.from('alarms').delete().eq('id', id);
-      if(error) return showToast(error.message);
-      await refreshAll(); renderApp(); showToast('Alarme excluído.');
-    }
-
-    function renderChat(){
+function renderChat(){
       markChatAsRead();
       const card = baseSection('Chat', 'Recados rápidos do grupo.');
       const input = el('textarea');
