@@ -618,10 +618,16 @@
     function renderOpenOriginal(url, label='Abrir original'){
       return url ? `<a class="btn small" href="${url}" target="_blank" rel="noopener noreferrer">${label}</a>` : '';
     }
+    function isImageUrl(url=''){
+      const clean = String(url||'').split('?')[0].toLowerCase();
+      return /\.(png|jpe?g|gif|webp|bmp|svg|heic|heif)$/i.test(clean);
+    }
     function renderDocViewer(url, emptyText){
-      return url
-        ? `<div class="inline-actions" style="margin:8px 0 10px">${renderOpenOriginal(url,'Abrir original')}</div><div class="media-box"><iframe class="viewer-iframe" src="${url}"></iframe></div>`
-        : `<div class="fine">${emptyText}</div>`;
+      if(!url) return `<div class="fine">${emptyText}</div>`;
+      const media = isImageUrl(url)
+        ? `<img src="${url}" alt="Arquivo enviado" style="max-width:100%;max-height:420px;border-radius:18px;display:block;margin:auto;object-fit:contain;background:#f8fafc">`
+        : `<iframe class="viewer-iframe" src="${url}"></iframe>`;
+      return `<div class="inline-actions" style="margin:8px 0 10px">${renderOpenOriginal(url,'Abrir original')}</div><div class="media-box">${media}</div>`;
     }
     function entityMeta(){
       try{return JSON.parse(localStorage.getItem('vg_entity_meta')||'{}')}catch(e){return {}}
@@ -1099,8 +1105,7 @@
       const locator = escapeHtml(ticket?.localizador || flight.localizador || flight.numero_reserva || '');
       const cpfPreview = `
         <h4>CPF do passageiro</h4>
-        <div class="doc-actions">${renderOpenOriginal(member.cpf_file_url)}</div>
-        <div class="media-box" style="margin-top:10px">${member.cpf_file_url ? `<iframe class="viewer-iframe" src="${member.cpf_file_url}"></iframe>` : 'CPF não enviado ainda.'}</div>`;
+        ${renderDocViewer(member.cpf_file_url, 'CPF não enviado ainda.')}`;
       openModal(buildDocumentModalLayout({
         title: escapeHtml(member.name),
         subtitle: `${escapeHtml(flight.origem||'')} → ${escapeHtml(flight.destino||'')} • ${escapeHtml(flight.cia||'')} ${escapeHtml(flight.numero_voo||'')} ${locator ? '• Localizador '+locator : ''}`,
@@ -1193,8 +1198,7 @@
       const ticket = ticketForPark(parkId, memberId);
       const cpfPreview = `
         <h4>CPF do participante</h4>
-        <div class="doc-actions">${renderOpenOriginal(member.cpf_file_url)}</div>
-        <div class="media-box" style="margin-top:10px">${member.cpf_file_url ? `<iframe class="viewer-iframe" src="${member.cpf_file_url}"></iframe>` : 'CPF não enviado.'}</div>`;
+        ${renderDocViewer(member.cpf_file_url, 'CPF não enviado.')}`;
       openModal(buildDocumentModalLayout({
         title: `${escapeHtml(park.nome)} • ${escapeHtml(member.name)}`,
         subtitle: `${formatDate(park.data)}`,
@@ -1280,8 +1284,7 @@
       const ticket = ticketForAttraction(attractionId, memberId);
       const cpfPreview = `
         <h4>CPF do participante</h4>
-        <div class="doc-actions">${renderOpenOriginal(member.cpf_file_url)}</div>
-        <div class="media-box" style="margin-top:10px">${member.cpf_file_url ? `<iframe class="viewer-iframe" src="${member.cpf_file_url}"></iframe>` : 'CPF não enviado.'}</div>`;
+        ${renderDocViewer(member.cpf_file_url, 'CPF não enviado.')}`;
       openModal(buildDocumentModalLayout({
         title: `${escapeHtml(attraction.nome)} • ${escapeHtml(member.name)}`,
         subtitle: `${formatDate(attraction.data_hora)}`,
@@ -1766,7 +1769,7 @@ END:VCALENDAR`;
       btn.onclick = async ()=>{
         const file = $('#fGalleryCamera').files[0] || $('#fGalleryFile').files[0];
         if(!file) return showToast('Selecione uma imagem.');
-        const url = await uploadFile('galeria', file, `${state.currentTrip.id}/gallery/${Date.now()}_${file.name}`, true);
+        const url = await uploadFile('galeria', file, `${state.currentTrip.id}/gallery/${Date.now()}_${file.name}`);
         if(!url) return;
         const uploader = state.currentFamily ? membersByFamily(state.currentFamily.id)[0] : null;
         const {error} = await state.supabase.from('gallery').insert({
@@ -1780,6 +1783,9 @@ END:VCALENDAR`;
         await refreshAll(); renderApp();
       };
       card.append(top, btn, el('div','divider'));
+      const albumTitle = el('div','section-header');
+      albumTitle.innerHTML = `<div><h3 style="font-size:18px">Álbum da viagem</h3><div class="muted">As fotos enviadas aparecem abaixo como miniaturas.</div></div>`;
+      card.append(albumTitle);
       const grid = el('div','gallery-grid');
       if(!state.cache.gallery.length) grid.innerHTML = '<div class="empty" style="grid-column:1/-1">Nenhuma foto enviada ainda.</div>';
       state.cache.gallery.forEach(g=>{
