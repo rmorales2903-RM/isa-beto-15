@@ -1403,9 +1403,23 @@ END:VCALENDAR`;
       const header = el('div','grid grid-3');
       header.innerHTML = `
         <div class="stat"><div class="fine">Total gasto</div><div class="kpi" style="font-size:22px">${formatMoney(result.total)}</div></div>
-        <div class="stat"><div class="fine">Participantes envolvidos</div><div class="kpi" style="font-size:22px">${result.count}</div></div>
-        <div class="stat"><div class="fine">Média por participante</div><div class="kpi" style="font-size:22px">${formatMoney(result.perPerson)}</div></div>`;
+        <div class="stat"><div class="fine">Participantes envolvidos</div><div class="kpi" id="rateioParticipantCount" style="font-size:22px">${result.count}</div></div>
+        <div class="stat"><div class="fine">Média por participante</div><div class="kpi" id="rateioPerPerson" style="font-size:22px">${formatMoney(result.perPerson)}</div></div>`;
       card.append(header);
+
+      const updateRateioPreview = ()=>{
+        const selectedCount = checkedValues('expenseSplit').length;
+        const currentValue = Number($('#fExpenseValue')?.value || 0);
+        $('#rateioParticipantCount').textContent = String(selectedCount || result.count || 0);
+        if(selectedCount > 0 && currentValue > 0){
+          $('#rateioPerPerson').textContent = formatMoney(currentValue / selectedCount);
+        }else{
+          $('#rateioPerPerson').textContent = formatMoney(result.perPerson);
+        }
+      };
+      document.querySelectorAll('input[name="expenseSplit"]').forEach(i=> i.addEventListener('change', updateRateioPreview));
+      $('#fExpenseValue').addEventListener('input', updateRateioPreview);
+      updateRateioPreview();
 
       const summary = el('div','grid grid-3');
       result.balances.forEach(b=>{
