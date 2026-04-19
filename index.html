@@ -196,16 +196,19 @@
     .roteiro-event-top{display:flex;justify-content:space-between;gap:12px;align-items:flex-start;flex-wrap:wrap}
     .roteiro-event-label{display:inline-flex;align-items:center;padding:6px 10px;border-radius:999px;background:#ede9fe;color:#5b21b6;font-size:11px;font-weight:900;letter-spacing:.3px;text-transform:uppercase}
     .roteiro-event-meta{display:flex;align-items:center;gap:10px;flex-wrap:wrap;justify-content:flex-end}
-    .roteiro-event-time{font-size:13px;color:var(--muted);font-weight:800}
+    .roteiro-event-time{font-size:18px;color:#1f2937;font-weight:900;letter-spacing:.2px}
     .roteiro-event-title{font-size:16px;font-weight:900;color:#1f2937}
-    .roteiro-alarm-inline{display:inline-flex;align-items:center;gap:8px;padding:7px 10px;border-radius:999px;background:#fff;border:1px solid #e9d5ff;box-shadow:var(--shadow-soft)}
+    .roteiro-alarm-inline{display:inline-flex;align-items:center;gap:8px;padding:7px 10px;border-radius:999px;background:#fff;border:1px solid #e9d5ff;box-shadow:var(--shadow-soft);flex-wrap:wrap}
     .roteiro-alarm-icon{position:relative;width:22px;height:22px;border-radius:999px;border:2px solid #7c3aed;display:inline-block}
     .roteiro-alarm-icon::before{content:"";position:absolute;width:2px;height:7px;background:#7c3aed;left:8px;top:3px;box-shadow:5px 4px 0 #7c3aed}
     .roteiro-alarm-icon::after{content:"";position:absolute;width:4px;height:4px;border-top:2px solid #7c3aed;border-left:2px solid #7c3aed;left:-3px;top:-3px;transform:rotate(-45deg);box-shadow:16px 0 0 -2px #7c3aed}
-    .roteiro-alarm-time{font-size:12px;font-weight:900;color:#5b21b6}
+    .roteiro-alarm-time{font-size:12px;font-weight:800;color:#6d28d9}
     .roteiro-alarm-toggle{border:none;border-radius:999px;padding:6px 10px;font-size:11px;font-weight:900;cursor:pointer}
     .roteiro-alarm-toggle.on{background:#16a34a;color:#fff}
     .roteiro-alarm-toggle.off{background:#efe9ff;color:#5b21b6}
+    .roteiro-alarm-input{width:92px;padding:6px 8px;border-radius:10px;border:1px solid #d8b4fe;background:#faf5ff;color:#5b21b6;font-size:12px;font-weight:800}
+    .roteiro-alarm-label{font-size:11px;color:#7c3aed;font-weight:900;text-transform:uppercase;letter-spacing:.3px}
+
     .roteiro-event-lines{display:grid;gap:6px}
     .roteiro-event-line{font-size:14px;color:#374151}
     .roteiro-event-line strong{color:#111827}
@@ -887,10 +890,26 @@
       store[key] = !!value;
       localStorage.setItem(`vg_alarm_switches_${state.currentTrip.id}`, JSON.stringify(store));
     }
+    function getAlarmTimeStore(){
+      if(!state.currentTrip) return {};
+      try{return JSON.parse(localStorage.getItem(`vg_alarm_times_${state.currentTrip.id}`)||'{}')}catch(e){return {}}
+    }
+    function getAlarmTimeValue(key, fallback=''){
+      if(!key) return fallback || '';
+      const store = getAlarmTimeStore();
+      return store[key] || fallback || '';
+    }
+    function setAlarmTimeValue(key, value){
+      if(!state.currentTrip || !key) return;
+      const store = getAlarmTimeStore();
+      store[key] = value || '';
+      localStorage.setItem(`vg_alarm_times_${state.currentTrip.id}`, JSON.stringify(store));
+    }
     function renderRoteiroAlarmControl(ev){
       if(!ev.alarm_time || !ev.alarm_key) return '';
       const on = isAlarmToggleOn(ev.alarm_key);
-      return `<div class="roteiro-alarm-inline"><span class="roteiro-alarm-icon" aria-hidden="true"></span><span class="roteiro-alarm-time">${escapeHtml(ev.alarm_time)}</span><button class="roteiro-alarm-toggle ${on ? 'on':'off'}" data-alarm-key="${escapeHtml(ev.alarm_key)}">${on ? 'Ligado':'Desligado'}</button></div>`;
+      const alarmTime = getAlarmTimeValue(ev.alarm_key, ev.alarm_time);
+      return `<div class="roteiro-alarm-inline"><span class="roteiro-alarm-icon" aria-hidden="true"></span><span class="roteiro-alarm-label">Alarme</span><input class="roteiro-alarm-input" type="time" value="${escapeHtml(alarmTime)}" data-alarm-time-key="${escapeHtml(ev.alarm_key)}"><span class="roteiro-alarm-time">${escapeHtml(alarmTime)}</span><button class="roteiro-alarm-toggle ${on ? 'on':'off'}" data-alarm-key="${escapeHtml(ev.alarm_key)}">${on ? 'Ligado':'Desligado'}</button></div>`;
     }
     function getTripDays(){
       const out = [];
@@ -2254,7 +2273,7 @@ END:VCALENDAR`;
             <h4>Criar nova família</h4>
             <div class="field"><label>Nome da família</label><input id="newFamilyName" placeholder="Família Morales"></div>
             <div class="field"><label>PIN inicial</label><input id="newFamilyPin" type="password" placeholder="4 a 6 dígitos"></div>
-            <div class="btn-row" style="margin-top:12px"><button class="btn secondary" id="btnCreateFamily">Criar família</button></div>
+            <div class="btn-row" style="margin-top:12px"><button class="btn" id="btnCreateFamily">Criar família</button></div>
           </div>
         </div>
       `);
