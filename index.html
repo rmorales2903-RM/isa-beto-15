@@ -180,6 +180,30 @@
     .tab-galeria .tab-icon::before{width:20px;height:16px;left:12px;top:14px;border:2px solid currentColor;border-radius:4px;background:transparent}
     .tab-galeria .tab-icon::after{width:12px;height:8px;left:16px;top:20px;clip-path:polygon(0 100%,35% 40%,60% 70%,78% 48%,100% 100%);}
 
+
+    .roteiro-toolbar{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px}
+    .roteiro-days{display:grid;gap:14px}
+    .roteiro-day-card{background:#fff;border:1px solid rgba(209,213,219,.75);border-radius:22px;padding:18px;box-shadow:var(--shadow);display:grid;gap:14px}
+    .roteiro-day-header{display:flex;justify-content:space-between;gap:12px;align-items:flex-start;flex-wrap:wrap}
+    .roteiro-day-title{display:grid;gap:4px}
+    .roteiro-day-badge{display:inline-flex;align-items:center;padding:8px 12px;border-radius:999px;background:#ede9fe;color:#5b21b6;font-weight:800;font-size:12px;letter-spacing:.3px}
+    .roteiro-day-total{font-size:12px;color:var(--muted);font-weight:700}
+    .roteiro-events{display:grid;gap:12px}
+    .roteiro-event-card{border:1px solid #ece7ff;background:#faf8ff;border-radius:18px;padding:14px;display:grid;gap:10px}
+    .roteiro-event-card.tipo-transporte{background:#f8fbff;border-color:#dbeafe}
+    .roteiro-event-card.tipo-hospedagem{background:#faf5ff;border-color:#e9d5ff}
+    .roteiro-event-card.tipo-alarme{background:#fff7ed;border-color:#fed7aa}
+    .roteiro-event-top{display:flex;justify-content:space-between;gap:12px;align-items:flex-start;flex-wrap:wrap}
+    .roteiro-event-label{display:inline-flex;align-items:center;padding:6px 10px;border-radius:999px;background:#ede9fe;color:#5b21b6;font-size:11px;font-weight:900;letter-spacing:.3px;text-transform:uppercase}
+    .roteiro-event-time{font-size:13px;color:var(--muted);font-weight:800}
+    .roteiro-event-title{font-size:16px;font-weight:900;color:#1f2937}
+    .roteiro-event-lines{display:grid;gap:6px}
+    .roteiro-event-line{font-size:14px;color:#374151}
+    .roteiro-event-line strong{color:#111827}
+    .roteiro-actions{display:flex;gap:8px;flex-wrap:wrap}
+    .roteiro-empty{padding:14px;border:1px dashed #d8b4fe;border-radius:16px;color:#6b7280;text-align:center;background:#faf5ff}
+    .roteiro-notes-card textarea{min-height:140px}
+
     @media (max-width:900px){
       .hero,.split,.grid-2,.grid-3,.form-grid,.stats,.table-row,.rateio-hero,.rateio-balance-grid{grid-template-columns:1fr}
       .topbar{position:static}
@@ -823,19 +847,230 @@
       return card;
     }
 
+
+    function dateKeyFromValue(v){
+      if(!v) return '';
+      if(/^\d{4}-\d{2}-\d{2}$/.test(String(v))) return String(v).slice(0,10);
+      const d = new Date(v);
+      if(Number.isNaN(d.getTime())) return String(v).slice(0,10);
+      const y = d.getFullYear();
+      const m = String(d.getMonth()+1).padStart(2,'0');
+      const day = String(d.getDate()).padStart(2,'0');
+      return `${y}-${m}-${day}`;
+    }
+    function formatDayLong(dayKey){
+      if(!dayKey) return '-';
+      const [y,m,d] = dayKey.split('-');
+      const dt = new Date(Number(y), Number(m)-1, Number(d));
+      return dt.toLocaleDateString('pt-BR',{weekday:'long', day:'2-digit', month:'2-digit', year:'numeric'});
+    }
+    function getTripDays(){
+      const out = [];
+      const startKey = dateKeyFromValue(state.currentTrip?.start_date);
+      const endKey = dateKeyFromValue(state.currentTrip?.end_date || state.currentTrip?.start_date);
+      if(startKey && endKey){
+        let cur = new Date(startKey+'T00:00:00');
+        const end = new Date(endKey+'T00:00:00');
+        while(cur <= end){
+          out.push(dateKeyFromValue(cur.toISOString()));
+          cur.setDate(cur.getDate()+1);
+        }
+      }
+      if(out.length) return out;
+      const keys = new Set();
+      state.cache.flights.forEach(f=> f.data && keys.add(dateKeyFromValue(f.data)));
+      state.cache.transfers.forEach(t=> t.data_hora && keys.add(dateKeyFromValue(t.data_hora)));
+      state.cache.hotels.forEach(h=> { if(h.checkin) keys.add(dateKeyFromValue(h.checkin)); if(h.checkout) keys.add(dateKeyFromValue(h.checkout)); });
+      state.cache.parks.forEach(p=> p.data && keys.add(dateKeyFromValue(p.data)));
+      state.cache.attractions.forEach(a=> a.data_hora && keys.add(dateKeyFromValue(a.data_hora)));
+      state.cache.alarms.forEach(a=> a.data_hora && keys.add(dateKeyFromValue(a.data_hora)));
+      return [...keys].sort();
+    }
+    function getRoteiroEventsByDay(dayKey){
+      const events = [];
+      state.cache.flights.forEach(f=>{
+        if(dateKeyFromValue(f.data) !== dayKey) return;
+        const pax = flightPassengers(f.id);
+        const locator = f.localizador || f.numero_reserva || (state.cache.flightTickets.find(t=>t.flight_id===f.id && t.localizador)?.localizador) || 'a definir';
+        events.push({
+          tipo:'voo',
+          sort:`${dayKey}T${(f.horario || '09:00').padStart(5,'0')}`,
+          title:`${f.origem || '-'} → ${f.destino || '-'}`,
+          time:f.horario || '',
+          lines:[
+            `${f.cia || 'Companhia não informada'} ${f.numero_voo || ''}`.trim(),
+            `Localizador: ${locator}`,
+            `${pax.length} passageiro(s)`
+          ],
+          actions:`<button class="btn secondary small" data-roteiro-action="flight-docs" data-id="${f.id}">Passagens + CPF</button>`
+        });
+      });
+      state.cache.transfers.forEach(t=>{
+        if(dateKeyFromValue(t.data_hora) !== dayKey) return;
+        events.push({
+          tipo:'transporte',
+          sort:t.data_hora || `${dayKey}T12:00`,
+          title:`${t.origem || '-'} → ${t.destino || '-'}`,
+          time:(t.data_hora || '').split('T')[1]?.slice(0,5) || '',
+          lines:[
+            `Responsável: ${t.responsavel || 'não informado'}`,
+            t.placa ? `Placa: ${t.placa}` : '',
+            t.obs || ''
+          ].filter(Boolean),
+          actions:`${renderWhatsApp(t.contato || '', 'WhatsApp')} ${renderMaps(t.destino || '')}`
+        });
+      });
+      state.cache.hotels.forEach(h=>{
+        if(dateKeyFromValue(h.checkin) === dayKey){
+          const meta = getEntityMeta('hotels', h.id);
+          const guests = hotelGuestMembers(h.id);
+          events.push({
+            tipo:'hospedagem',
+            sort:`${dayKey}T14:00`,
+            title:h.nome || 'Hospedagem',
+            time:'Check-in',
+            lines:[
+              meta.reserva_numero || h.numero_reserva ? `Reserva: ${meta.reserva_numero || h.numero_reserva}` : '',
+              h.endereco || '',
+              `${guests.length} hóspede(s)`
+            ].filter(Boolean),
+            actions:`<button class="btn secondary small" data-roteiro-action="hotel-voucher" data-id="${h.id}">Voucher</button><button class="btn secondary small" data-roteiro-action="hotel-docs" data-id="${h.id}">Documentos</button>`
+          });
+        }
+        if(dateKeyFromValue(h.checkout) === dayKey){
+          events.push({
+            tipo:'hospedagem',
+            sort:`${dayKey}T11:00`,
+            title:`Check-out ${h.nome || ''}`.trim(),
+            time:'Check-out',
+            lines:[h.endereco || 'Saída da hospedagem'],
+            actions:`${renderMaps(h.endereco)}`
+          });
+        }
+      });
+      state.cache.parks.forEach(p=>{
+        if(dateKeyFromValue(p.data) !== dayKey) return;
+        const participants = state.cache.parkTickets.filter(t=>t.park_id===p.id).length;
+        events.push({
+          tipo:'parque',
+          sort:`${dayKey}T09:00`,
+          title:p.nome || 'Parque',
+          time:'Dia do parque',
+          lines:[`${participants} participante(s)`],
+          actions:`<button class="btn secondary small" data-roteiro-action="park-docs" data-id="${p.id}">Ingressos + documentos</button>`
+        });
+      });
+      state.cache.attractions.forEach(a=>{
+        if(dateKeyFromValue(a.data_hora) !== dayKey) return;
+        const participants = state.cache.attractionTickets.filter(t=>t.attraction_id===a.id).length;
+        events.push({
+          tipo:'atração',
+          sort:a.data_hora || `${dayKey}T12:00`,
+          title:a.nome || 'Atração',
+          time:(a.data_hora || '').split('T')[1]?.slice(0,5) || '',
+          lines:[`${participants} participante(s)`],
+          actions:`<button class="btn secondary small" data-roteiro-action="attraction-docs" data-id="${a.id}">Ingressos + documentos</button>`
+        });
+      });
+      const derived = getDerivedAlarms().filter(a=>dateKeyFromValue(a.data_hora) === dayKey).map(a=>({
+        tipo:'alarme', sort:a.data_hora, title:a.titulo, time:(a.data_hora || '').split('T')[1]?.slice(0,5) || '', lines:[a.descricao || ''], actions:''
+      }));
+      const manuals = state.cache.alarms.filter(a=>dateKeyFromValue(a.data_hora) === dayKey).map(a=>({
+        tipo:'alarme', sort:a.data_hora, title:a.titulo, time:(a.data_hora || '').split('T')[1]?.slice(0,5) || '', lines:[a.descricao || ''], actions:''
+      }));
+      events.push(...derived, ...manuals);
+      return events.sort((a,b)=> new Date(a.sort) - new Date(b.sort));
+    }
+    function ensurePrivateFamilyAccess(message){
+      if(!state.currentFamily || !state.familyPinVerified){
+        openFamilyAccess(message || 'Confirme sua família e o PIN para abrir documentos privados.');
+        return false;
+      }
+      return true;
+    }
+    function membersFromCurrentFamily(members){
+      if(!state.currentFamily) return [];
+      return (members || []).filter(m=>m && m.family_id === state.currentFamily.id);
+    }
+    function openFlightDocumentsOverview(flightId){
+      if(!ensurePrivateFamilyAccess('Confirme sua família e o PIN para ver as passagens e CPFs da sua família.')) return;
+      const flight = state.cache.flights.find(f=>f.id===flightId);
+      if(!flight) return;
+      const pax = membersFromCurrentFamily(flightPassengers(flight.id));
+      openModal(`
+        <h3>Passagens e documentos do voo</h3>
+        <div class="fine">${escapeHtml(flight.origem || '-')} → ${escapeHtml(flight.destino || '-')} • ${escapeHtml(flight.cia || '')} ${escapeHtml(flight.numero_voo || '')}</div>
+        <div class="list" style="margin-top:14px">
+          ${pax.map(p=>`<div class="item"><div class="item-head"><div><b>${escapeHtml(p.name)}</b><div class="fine">${escapeHtml(familyOfMember(p.id)?.name || '')}</div></div><div class="btn-row"><button class="btn secondary small roteiro-open-passenger" data-flight="${flight.id}" data-member="${p.id}">Passagem + CPF</button></div></div></div>`).join('') || '<div class="empty">Nenhum passageiro da sua família vinculado a este voo.</div>'}
+        </div>
+      `);
+      document.querySelectorAll('.roteiro-open-passenger').forEach(btn=> btn.onclick = ()=> openFlightMember(btn.dataset.flight, btn.dataset.member));
+    }
+    function openParkDocumentsOverview(parkId){
+      if(!ensurePrivateFamilyAccess('Confirme sua família e o PIN para ver os ingressos e documentos da sua família.')) return;
+      const park = state.cache.parks.find(p=>p.id===parkId);
+      if(!park) return;
+      const participants = membersFromCurrentFamily(state.cache.parkTickets.filter(t=>t.park_id===park.id).map(t=>state.cache.members.find(m=>m.id===t.member_id)).filter(Boolean));
+      openModal(`
+        <h3>Ingressos e documentos do parque</h3>
+        <div class="fine">${escapeHtml(park.nome || '')} • ${formatDate(park.data)}</div>
+        <div class="list" style="margin-top:14px">
+          ${participants.map(p=>`<div class="item"><div class="item-head"><div><b>${escapeHtml(p.name)}</b><div class="fine">${escapeHtml(familyOfMember(p.id)?.name || '')}</div></div><div class="btn-row"><button class="btn secondary small roteiro-open-park" data-park="${park.id}" data-member="${p.id}">Ingresso + CPF</button></div></div></div>`).join('') || '<div class="empty">Nenhum participante da sua família vinculado a este parque.</div>'}
+        </div>
+      `);
+      document.querySelectorAll('.roteiro-open-park').forEach(btn=> btn.onclick = ()=> openParkMember(btn.dataset.park, btn.dataset.member));
+    }
+    function openAttractionDocumentsOverview(attractionId){
+      if(!ensurePrivateFamilyAccess('Confirme sua família e o PIN para ver os ingressos e documentos da sua família.')) return;
+      const attraction = state.cache.attractions.find(a=>a.id===attractionId);
+      if(!attraction) return;
+      const participants = membersFromCurrentFamily(state.cache.attractionTickets.filter(t=>t.attraction_id===attraction.id).map(t=>state.cache.members.find(m=>m.id===t.member_id)).filter(Boolean));
+      openModal(`
+        <h3>Ingressos e documentos da atração</h3>
+        <div class="fine">${escapeHtml(attraction.nome || '')} • ${formatDate(attraction.data_hora)}</div>
+        <div class="list" style="margin-top:14px">
+          ${participants.map(p=>`<div class="item"><div class="item-head"><div><b>${escapeHtml(p.name)}</b><div class="fine">${escapeHtml(familyOfMember(p.id)?.name || '')}</div></div><div class="btn-row"><button class="btn secondary small roteiro-open-attraction" data-attraction="${attraction.id}" data-member="${p.id}">Ingresso + CPF</button></div></div></div>`).join('') || '<div class="empty">Nenhum participante da sua família vinculado a esta atração.</div>'}
+        </div>
+      `);
+      document.querySelectorAll('.roteiro-open-attraction').forEach(btn=> btn.onclick = ()=> openAttractionMember(btn.dataset.attraction, btn.dataset.member));
+    }
+    function openHotelOverviewFromRoteiro(hotelId, mode){
+      if(!ensurePrivateFamilyAccess('Confirme sua família e o PIN para ver voucher e documentos privados da hospedagem.')) return;
+      const hotel = state.cache.hotels.find(h=>h.id===hotelId);
+      if(!hotel) return;
+      const guests = hotelGuestMembers(hotel.id);
+      const guestFamilies = [...new Set(guests.map(g=>g.family_id))];
+      if(guestFamilies.length && !guestFamilies.includes(state.currentFamily.id)) return showToast('Esta hospedagem não possui documentos da sua família.');
+      if(mode === 'docs') return openFamilyDocsByHotel(hotel, guests);
+      return openHotelVoucher(hotel, guests);
+    }
+
     function renderRoteiro(){
-      const card = baseSection('Roteiro', 'Editor compartilhado para todos da viagem.');
+      const card = baseSection('Roteiro da viagem', 'Central diária da viagem, com os eventos do dia e atalhos rápidos para documentos e ações.');
       card.id = 'form-roteiro';
-      const val = state.cache.roteiro?.content_md || '';
+      const toolbar = el('div','roteiro-toolbar');
+      const btnNotes = el('button','btn secondary small','Observações gerais');
+      const btnSave = el('button','btn small','Salvar observações');
+      const btnIdea = el('button','btn ghost small','Gerar sugestão');
+      toolbar.append(btnNotes, btnSave, btnIdea);
+      card.append(toolbar);
+
+      const notesCard = el('div','card roteiro-notes-card hidden');
       const area = el('textarea');
-      area.value = val;
-      area.placeholder = 'Cole aqui o roteiro da viagem...';
-      const buttons = el('div','btn-row');
-      const btnIdea = el('button','btn secondary','Gerar sugestão');
-      btnIdea.onclick = ()=>{
-        area.value = `Roteiro sugerido para ${state.currentTrip.name}\n\n- Dia 1: chegada, translado e check-in\n- Dia 2: parque principal\n- Dia 3: atrações especiais e fotos em grupo\n- Dia 4: roteiro livre / compras / praia\n- Dia 5: retorno\n\nObservações:\n- Confirmar horários de translado\n- Conferir ingressos e documentos da família`;
+      area.value = state.cache.roteiro?.content_md || '';
+      area.placeholder = 'Observações gerais, combinações do grupo, listas ou detalhes que não se encaixam em um dia específico.';
+      notesCard.append(area);
+      card.append(notesCard);
+
+      btnNotes.onclick = ()=> notesCard.classList.toggle('hidden');
+      btnIdea.onclick = ()=> {
+        area.value = `Observações gerais para ${state.currentTrip.name}
+
+- Confirmar horários com antecedência
+- Conferir documentos e ingressos no dia anterior
+- Compartilhar ponto de encontro com todas as famílias`;
+        notesCard.classList.remove('hidden');
       };
-      const btnSave = el('button','btn','Salvar roteiro');
       btnSave.onclick = async ()=>{
         const payload = {trip_id: state.currentTrip.id, content_md: area.value, updated_at: new Date().toISOString()};
         if(state.cache.roteiro){
@@ -845,12 +1080,60 @@
           const {error} = await state.supabase.from('roteiro').insert(payload);
           if(error) return showToast(error.message);
         }
-        await refreshAll(); renderApp(); showToast('Roteiro salvo.');
+        await refreshAll(); renderApp(); showToast('Observações do roteiro salvas.');
       };
-      buttons.append(btnIdea, btnSave);
-      card.append(area, buttons);
+
+      const daysWrap = el('div','roteiro-days');
+      const days = getTripDays();
+      if(!days.length){
+        daysWrap.innerHTML = '<div class="roteiro-empty">Defina as datas da viagem ou cadastre eventos para montar o roteiro por dias.</div>';
+      } else {
+        days.forEach((dayKey, index)=>{
+          const dayEvents = getRoteiroEventsByDay(dayKey);
+          const dayCard = el('div','roteiro-day-card');
+          dayCard.innerHTML = `
+            <div class="roteiro-day-header">
+              <div class="roteiro-day-title">
+                <span class="roteiro-day-badge">Dia ${index+1}</span>
+                <h3 style="margin:0">${escapeHtml(formatDayLong(dayKey))}</h3>
+              </div>
+              <div class="roteiro-day-total">${dayEvents.length} compromisso(s)</div>
+            </div>`;
+          const eventsWrap = el('div','roteiro-events');
+          if(!dayEvents.length){
+            eventsWrap.innerHTML = '<div class="roteiro-empty">Sem eventos cadastrados para este dia.</div>';
+          } else {
+            dayEvents.forEach(ev=>{
+              const eventCard = el('div',`roteiro-event-card tipo-${ev.tipo}`);
+              eventCard.innerHTML = `
+                <div class="roteiro-event-top">
+                  <div>
+                    <span class="roteiro-event-label">${escapeHtml(ev.tipo)}</span>
+                    <div class="roteiro-event-title" style="margin-top:8px">${escapeHtml(ev.title)}</div>
+                  </div>
+                  <div class="roteiro-event-time">${escapeHtml(ev.time || '')}</div>
+                </div>
+                <div class="roteiro-event-lines">
+                  ${ev.lines.map(line=>`<div class="roteiro-event-line">${escapeHtml(line)}</div>`).join('')}
+                </div>
+                ${ev.actions ? `<div class="roteiro-actions">${ev.actions}</div>` : ''}`;
+              eventsWrap.appendChild(eventCard);
+            });
+          }
+          dayCard.appendChild(eventsWrap);
+          daysWrap.appendChild(dayCard);
+        });
+      }
+      card.append(daysWrap);
       mount(card);
+
+      document.querySelectorAll('[data-roteiro-action="flight-docs"]').forEach(btn=> btn.onclick = ()=> openFlightDocumentsOverview(btn.dataset.id));
+      document.querySelectorAll('[data-roteiro-action="park-docs"]').forEach(btn=> btn.onclick = ()=> openParkDocumentsOverview(btn.dataset.id));
+      document.querySelectorAll('[data-roteiro-action="attraction-docs"]').forEach(btn=> btn.onclick = ()=> openAttractionDocumentsOverview(btn.dataset.id));
+      document.querySelectorAll('[data-roteiro-action="hotel-voucher"]').forEach(btn=> btn.onclick = ()=> openHotelOverviewFromRoteiro(btn.dataset.id, 'voucher'));
+      document.querySelectorAll('[data-roteiro-action="hotel-docs"]').forEach(btn=> btn.onclick = ()=> openHotelOverviewFromRoteiro(btn.dataset.id, 'docs'));
     }
+
 
     function renderTransporte(){
       const card = baseSection('Transporte', 'Translados visíveis para todo o grupo, com responsável e WhatsApp clicável.');
