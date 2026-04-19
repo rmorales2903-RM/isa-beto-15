@@ -329,6 +329,7 @@
       currentTrip: null,
       currentTab: 'roteiro',
       currentFamily: null,
+      currentMember: null,
       familyPinVerified: false,
       familyPin: '',
       cache: {
@@ -400,6 +401,30 @@
       renderRecentTrips();
     }
 
+
+    function getCurrentMemberStorageKey(){
+      if(!state.currentTrip || !state.currentFamily) return '';
+      return `vg_current_member_${state.currentTrip.id}_${state.currentFamily.id}`;
+    }
+    function persistCurrentMember(memberId){
+      const key = getCurrentMemberStorageKey();
+      if(!key) return;
+      localStorage.setItem(key, memberId || '');
+    }
+    function restoreCurrentMember(){
+      const key = getCurrentMemberStorageKey();
+      if(!key) return null;
+      const memberId = localStorage.getItem(key) || '';
+      return state.cache.members.find(m=>m.id===memberId && m.family_id===state.currentFamily?.id) || null;
+    }
+    function identifyCurrentMember(memberId){
+      const member = state.cache.members.find(m=>m.id===memberId && m.family_id===state.currentFamily?.id);
+      if(!member) return false;
+      state.currentMember = member;
+      persistCurrentMember(member.id);
+      renderApp();
+      return true;
+    }
     function initSupabase(){
       if(!SUPABASE_URL || SUPABASE_URL.includes('COLE_SUA_URL')) return null;
       try{
@@ -547,8 +572,20 @@
 
       if(state.currentFamily){
         const match = state.cache.families.find(f=>f.id === state.currentFamily.id);
-        if(!match){ state.currentFamily = null; state.familyPinVerified=false; state.familyPin=''; }
-        else state.currentFamily = match;
+        if(!match){ state.currentFamily = null; state.currentMember = null; state.familyPinVerified=false; state.familyPin=''; }
+        else {
+          state.currentFamily = match;
+          const restored = restoreCurrentMember();
+          if(restored) state.currentMember = restored;
+          else if(state.currentMember && state.currentMember.family_id === state.currentFamily.id){
+            const currentMatch = state.cache.members.find(m=>m.id===state.currentMember.id);
+            state.currentMember = currentMatch || null;
+          } else {
+            state.currentMember = null;
+          }
+        }
+      } else {
+        state.currentMember = null;
       }
     }
 
@@ -558,7 +595,7 @@
       $('#tripDates').textContent = `${formatDate(state.currentTrip.start_date)} até ${formatDate(state.currentTrip.end_date)}`;
       $('#tripCode').textContent = state.currentTrip.code;
       $('#topTripLabel').textContent = state.currentTrip.name;
-      $('#familyBadge').textContent = state.currentFamily ? `${state.currentFamily.name}${state.familyPinVerified ? ' • PIN ativo' : ''}` : 'Sem família ativa';
+      $('#familyBadge').textContent = state.currentFamily ? `${state.currentFamily.name}${state.currentMember ? ' • ' + state.currentMember.name : ''}${state.familyPinVerified ? ' • PIN ativo' : ''}` : 'Sem família ativa';
       const inviteBtn = $('#btnInvite');
       if(inviteBtn) inviteBtn.textContent = 'Enviar no WhatsApp';
       const appCard = $('#screenApp .card');
@@ -762,7 +799,7 @@
 
     function mount(node){ $('#tabContent').appendChild(node); }
 
-    const tabFormMap = {transporte:'form-transporte', hospedagem:'form-hotel', voos:'form-voo', parques:'form-parque', atracoes:'form-atracao'};
+    const tabFormMap = {roteiro:'form-roteiro', transporte:'form-transporte-criacao', hospedagem:'form-hotel-criacao', voos:'form-voo-criacao', parques:'form-parque-criacao', atracoes:'form-atracao-criacao', alarmes:'form-alarmes', rateios:'form-rateios', chat:'form-chat', ponto:'form-ponto', documentos:'form-documentos', galeria:'form-galeria'};
     function abrirFormularioNoFluxo(tabId){
       const formId = tabFormMap[tabId];
       const content = $('#tabContent');
@@ -788,6 +825,7 @@
 
     function renderRoteiro(){
       const card = baseSection('Roteiro', 'Editor compartilhado para todos da viagem.');
+      card.id = 'form-roteiro';
       const val = state.cache.roteiro?.content_md || '';
       const area = el('textarea');
       area.value = val;
@@ -816,6 +854,7 @@
 
     function renderTransporte(){
       const card = baseSection('Transporte', 'Translados visíveis para todo o grupo, com responsável e WhatsApp clicável.');
+      card.id = 'form-transporte';
       const providerOptions = state.cache.transportProviders.map(p=>`<option value="${p.id}">${escapeHtml(p.empresa)}${p.responsavel ? ' — '+escapeHtml(p.responsavel):''}</option>`).join('');
       const hotelOptions = state.cache.hotels.map(h=>`<option value="${h.id}">${escapeHtml(h.nome)}${h.endereco ? ' — '+escapeHtml(h.endereco):''}</option>`).join('');
 
@@ -915,6 +954,7 @@
 
     function renderHospedagem(){
       const card = baseSection('Hospedagem', 'Reserva por família, com número da reserva, WhatsApp clicável, Maps e voucher privado por família.');
+      card.id = 'form-hotel';
       const familiesOptions = state.cache.families.map(f=>`<option value="${f.id}">${escapeHtml(f.name)}</option>`).join('');
       const membersOptions = state.cache.members.map(m=>`<option value="${m.id}">${escapeHtml(m.name)} — ${escapeHtml(familyOfMember(m.id)?.name || '')}</option>`).join('');
       const form = el('div','form-grid');
@@ -1051,6 +1091,7 @@
 
     function renderVoos(){
       const card = baseSection('Voos', 'Trechos públicos. Clique no passageiro para abrir passagem + documento e fazer upload do bilhete.');
+      card.id = 'form-voo';
       const membersOptions = state.cache.members.map(m=>`<option value="${m.id}">${escapeHtml(m.name)}</option>`).join('');
       const form = el('div','form-grid');
       form.id = 'form-voo';
@@ -1169,6 +1210,7 @@
 
     function renderParques(){
       const card = baseSection('Parques', 'Clique no participante para abrir ingresso + documento e salvar o ticket individual.');
+      card.id = 'form-parque';
       const membersOptions = state.cache.members.map(m=>`<option value="${m.id}">${escapeHtml(m.name)}</option>`).join('');
       const form = el('div','form-grid');
       form.id = 'form-parque';
@@ -1256,6 +1298,7 @@
 
     function renderAtracoes(){
       const card = baseSection('Atrações', 'Clique no participante para abrir ingresso da atração + documento pessoal.');
+      card.id = 'form-atracao';
       const membersOptions = state.cache.members.map(m=>`<option value="${m.id}">${escapeHtml(m.name)}</option>`).join('');
       const form = el('div','form-grid');
       form.id = 'form-atracao';
@@ -1368,6 +1411,7 @@
 
     function renderAlarmes(){
       const card = baseSection('Alarmes', 'Lembretes manuais e lembretes automáticos do que já foi salvo em transporte, hospedagem, voos, parques e atrações.');
+      card.id = 'form-alarmes';
       const form = el('div','form-grid');
       form.innerHTML = `
         <div class="field"><label>Título</label><input id="fAlarmTitle" placeholder="Saída para o parque"></div>
@@ -1435,6 +1479,7 @@ END:VCALENDAR`;
 
     function renderRateios(){
       const card = baseSection('Rateios', 'Cadastre os gastos normalmente. Depois marque quem entra no rateio final e o sistema sugere quem paga para quem.');
+      card.id = 'form-rateios';
       const memberOptions = state.cache.members.map(m=>`<option value="${m.id}">${escapeHtml(m.name)}</option>`).join('');
 
       const form = el('div','form-grid');
@@ -1666,13 +1711,14 @@ END:VCALENDAR`;
     function renderChat(){
       markChatAsRead();
       const card = baseSection('Chat', 'Recados rápidos do grupo.');
+      card.id = 'form-chat';
       const input = el('textarea');
       input.placeholder = 'Escreva um recado para o grupo...';
       const btn = el('button','btn','Enviar recado');
       btn.onclick = async ()=>{
         const texto = input.value.trim();
         if(!texto) return;
-        const memberName = state.currentFamily ? `${state.currentFamily.name}` : 'Convidado';
+        const memberName = state.currentMember ? state.currentMember.name : (state.currentFamily ? `${state.currentFamily.name}` : 'Convidado');
         const {error} = await state.supabase.from('messages').insert({trip_id:state.currentTrip.id, member_name:memberName, texto});
         if(error) return showToast(error.message);
         input.value=''; await refreshAll(); renderApp();
@@ -1691,13 +1737,14 @@ END:VCALENDAR`;
 
     function renderPonto(){
       const card = baseSection('Ponto de Encontro', 'Cada pessoa pode compartilhar uma localização temporária para o grupo.');
+      card.id = 'form-ponto';
       const info = el('div','auth-note', 'O SQL tem a tabela <b>checkins_localizacao</b> para esse recurso. Este HTML pega sua localização atual e salva um pin temporário.');
       const btns = el('div','btn-row');
       const btnShare = el('button','btn','Compartilhar minha localização');
       btnShare.onclick = async ()=>{
         if(!state.currentFamily) return showToast('Selecione sua família antes.');
-        const member = membersByFamily(state.currentFamily.id)[0];
-        if(!member) return showToast('Cadastre ao menos um membro da sua família primeiro.');
+        const member = state.currentMember || membersByFamily(state.currentFamily.id)[0];
+        if(!member) return showToast('Cadastre e identifique ao menos um membro da sua família primeiro.');
         if(!navigator.geolocation) return showToast('Geolocalização não suportada.');
         navigator.geolocation.getCurrentPosition(async pos=>{
           const payload = {
@@ -1733,6 +1780,7 @@ END:VCALENDAR`;
 
     function renderDocumentos(){
       const card = baseSection('Documentos da Família', 'CPF e RG rápidos para uso no aeroporto, polícia, banco ou hotel.');
+      card.id = 'form-documentos';
       if(!state.currentFamily || !state.familyPinVerified){
         card.append(el('div','empty','Ative sua família e confirme o PIN para ver os documentos privados.'));
         const b = el('button','btn','Ativar minha família');
@@ -1786,6 +1834,7 @@ END:VCALENDAR`;
 
     function renderGaleria(){
       const card = baseSection('Galeria', 'Fotos compartilhadas da viagem. Somente quem enviou pode apagar.');
+      card.id = 'form-galeria';
       const top = el('div','form-grid');
       top.innerHTML = `
         <div class="field"><label>Descrição</label><input id="fGalleryDesc" placeholder="Chegada no aeroporto"></div>
@@ -1798,7 +1847,7 @@ END:VCALENDAR`;
         if(!file) return showToast('Selecione uma imagem.');
         const url = await uploadFile('galeria', file, `${state.currentTrip.id}/gallery/${Date.now()}_${file.name}`);
         if(!url) return;
-        const uploader = state.currentFamily ? membersByFamily(state.currentFamily.id)[0] : null;
+        const uploader = state.currentMember || (state.currentFamily ? membersByFamily(state.currentFamily.id)[0] : null);
         const {error} = await state.supabase.from('gallery').insert({
           trip_id: state.currentTrip.id,
           url,
@@ -1850,6 +1899,7 @@ END:VCALENDAR`;
       return signed.data.signedUrl;
     }
 
+
     function openFamilyAccess(message){
       const options = state.cache.families.map(f=>`<option value="${f.id}">${escapeHtml(f.name)}</option>`).join('');
       openModal(`
@@ -1861,6 +1911,7 @@ END:VCALENDAR`;
             <h4>Entrar em uma família existente</h4>
             <div class="field"><label>Família</label><select id="familySelect"><option value="">Selecione</option>${options}</select></div>
             <div class="field"><label>PIN da família</label><input id="familyPinInput" type="password" placeholder="4 a 6 dígitos"></div>
+            <div class="field"><label>Quem está usando este aparelho?</label><select id="familyMemberSelect"><option value="">Selecione seu nome</option></select><div class="fine" id="familyMemberHelp">Escolha a família para listar os membros.</div></div>
             <div class="btn-row" style="margin-top:12px"><button class="btn" id="btnEnterFamily">Confirmar PIN</button></div>
           </div>
           <div>
@@ -1871,14 +1922,31 @@ END:VCALENDAR`;
           </div>
         </div>
       `);
+      function fillMemberOptions(){
+        const familyId = $('#familySelect').value;
+        const memberSelect = $('#familyMemberSelect');
+        const help = $('#familyMemberHelp');
+        const members = state.cache.members.filter(m=>m.family_id===familyId);
+        memberSelect.innerHTML = `<option value="">${members.length ? 'Selecione seu nome' : 'Nenhum membro cadastrado'}</option>` + members.map(m=>`<option value="${m.id}">${escapeHtml(m.name)}</option>`).join('');
+        if(!familyId) help.textContent = 'Escolha a família para listar os membros.';
+        else if(!members.length) help.textContent = 'Essa família ainda não tem membros cadastrados.';
+        else help.textContent = 'Selecione quem está usando este aparelho.';
+      }
+      $('#familySelect').onchange = fillMemberOptions;
+      fillMemberOptions();
       $('#btnEnterFamily').onclick = ()=>{
         const fam = state.cache.families.find(f=>f.id === $('#familySelect').value);
         const pin = $('#familyPinInput').value.trim();
+        const memberId = $('#familyMemberSelect').value;
         if(!fam) return showToast('Selecione a família.');
         if(String(pin).trim() !== String(fam.pin_hash || '').trim()) return showToast('PIN inválido.');
+        const members = state.cache.members.filter(m=>m.family_id===fam.id);
+        if(members.length && !memberId) return showToast('Selecione quem está usando este aparelho.');
         state.currentFamily = fam;
         state.familyPinVerified = true;
         state.familyPin = pin;
+        state.currentMember = memberId ? (state.cache.members.find(m=>m.id===memberId) || null) : null;
+        if(state.currentMember) persistCurrentMember(state.currentMember.id);
         closeModal(); renderApp();
       };
       $('#btnCreateFamily').onclick = async ()=>{
@@ -1887,7 +1955,7 @@ END:VCALENDAR`;
         if(!name || pin.length < 4) return showToast('Informe nome e PIN com pelo menos 4 caracteres.');
         const {data,error} = await state.supabase.from('families').insert({trip_id:state.currentTrip.id, name, pin_hash:pin}).select().single();
         if(error) return showToast(error.message);
-        state.currentFamily = data; state.familyPinVerified = true; state.familyPin = pin;
+        state.currentFamily = data; state.currentMember = null; state.familyPinVerified = true; state.familyPin = pin;
         await refreshAll(); closeModal(); renderApp();
         openFamilyMembersManager();
       };
@@ -1898,7 +1966,8 @@ END:VCALENDAR`;
       const members = membersByFamily(state.currentFamily.id);
       openModal(`
         <h3>${escapeHtml(state.currentFamily.name)}</h3>
-        <div class="muted">Cadastre os membros da família e os documentos base.</div>
+        <div class="muted">Cadastre os membros da família, os documentos base e identifique quem está usando este aparelho.</div>
+        <div class="auth-note" style="margin-top:12px">Usuário atual neste aparelho: <b>${escapeHtml(state.currentMember?.name || 'não identificado')}</b></div>
         <div class="divider"></div>
         <div class="form-grid">
           <div class="field"><label>Nome do membro</label><input id="newMemberName" placeholder="Rodrigo Morales"></div>
@@ -1907,12 +1976,14 @@ END:VCALENDAR`;
           <div class="field"><label>Telefone emergência</label><input id="newMemberEmergFone" placeholder="(17) 99999-9999"></div>
           <div class="field" style="grid-column:1/-1"><label>Informações médicas</label><textarea id="newMemberInfo" placeholder="Alergias, tipo sanguíneo, remédio contínuo..."></textarea></div>
         </div>
-        <div class="btn-row" style="margin-top:12px"><button class="btn" id="btnAddMember">Adicionar membro</button></div>
+        <div class="btn-row" style="margin-top:12px"><button class="btn" id="btnAddMember">Adicionar membro</button><button class="btn secondary" id="btnIdentifyHere">Identificar usuário neste aparelho</button></div>
         <div class="divider"></div>
         <div class="list">
-          ${members.map(m=>`<div class="item"><b>${escapeHtml(m.name)}</b><div class="fine">${escapeHtml(m.emergencia_nome || '')} ${escapeHtml(m.emergencia_fone || '')}</div></div>`).join('') || '<div class="empty">Nenhum membro cadastrado ainda.</div>'}
+          ${members.map(m=>`<div class="item"><div class="item-head"><div><b>${escapeHtml(m.name)}</b><div class="fine">${escapeHtml(m.emergencia_nome || '')} ${escapeHtml(m.emergencia_fone || '')}</div></div><button class="btn secondary small pick-member" data-member="${m.id}">Usar neste aparelho</button></div></div>`).join('') || '<div class="empty">Nenhum membro cadastrado ainda.</div>'}
         </div>
       `);
+      document.getElementById('btnIdentifyHere').onclick = ()=> openFamilyAccess('Confirme a família, o PIN e escolha quem está usando este aparelho.');
+      document.querySelectorAll('.pick-member').forEach(btn=> btn.onclick = ()=>{ identifyCurrentMember(btn.dataset.member); openFamilyMembersManager(); renderApp(); });
       $('#btnAddMember').onclick = async ()=>{
         const payload = {
           family_id: state.currentFamily.id,
@@ -1966,7 +2037,7 @@ END:VCALENDAR`;
       $('#btnOpenFamilyModal').onclick = ()=> state.currentTrip ? openFamilyAccess('Selecione, crie ou confirme sua família.') : showToast('Entre em uma viagem primeiro.');
       $('#btnSOS').onclick = openSOS;
       $('#btnLogout').onclick = ()=>{
-        state.currentTrip = null; state.currentFamily = null; state.familyPinVerified = false; state.familyPin=''; switchScreen('home');
+        state.currentTrip = null; state.currentFamily = null; state.currentMember = null; state.familyPinVerified = false; state.familyPin=''; switchScreen('home');
       };
     }
 
