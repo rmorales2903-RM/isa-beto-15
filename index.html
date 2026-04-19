@@ -123,6 +123,10 @@
     .table-row{display:grid;grid-template-columns:1.1fr .9fr .9fr .6fr;gap:10px;padding:10px 0;border-bottom:1px solid #f1f5f9}
     .table-row.header{font-weight:800;color:#6b7280}
     .viewer-iframe{width:100%;height:420px;border:none;border-radius:18px;background:#f3f4f6}
+    .form-spotlight{position:relative;z-index:2;animation:formPulse .9s ease;box-shadow:0 0 0 4px rgba(76,29,149,.14), 0 18px 40px rgba(76,29,149,.12)!important;border-radius:20px}
+    .tab-content-spotlight{animation:contentPulse .5s ease}
+    @keyframes formPulse{0%{transform:translateY(8px);opacity:.72}60%{transform:translateY(0);opacity:1}100%{transform:translateY(0);opacity:1}}
+    @keyframes contentPulse{0%{opacity:.65}100%{opacity:1}}
 
     .section-card-title{font-size:20px;font-weight:900;margin-bottom:6px}
     .panel-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
@@ -325,7 +329,6 @@
       currentTrip: null,
       currentTab: 'roteiro',
       currentFamily: null,
-      currentMember: null,
       familyPinVerified: false,
       familyPin: '',
       cache: {
@@ -544,14 +547,8 @@
 
       if(state.currentFamily){
         const match = state.cache.families.find(f=>f.id === state.currentFamily.id);
-        if(!match){ state.currentFamily = null; state.currentMember = null; state.familyPinVerified=false; state.familyPin=''; persistCurrentMember(''); }
+        if(!match){ state.currentFamily = null; state.familyPinVerified=false; state.familyPin=''; }
         else state.currentFamily = match;
-      }
-      restoreCurrentMember();
-      if(state.currentMember){
-        const matchMember = state.cache.members.find(m=>m.id === state.currentMember.id);
-        if(!matchMember){ state.currentMember = null; persistCurrentMember(''); }
-        else state.currentMember = matchMember;
       }
     }
 
@@ -561,7 +558,7 @@
       $('#tripDates').textContent = `${formatDate(state.currentTrip.start_date)} até ${formatDate(state.currentTrip.end_date)}`;
       $('#tripCode').textContent = state.currentTrip.code;
       $('#topTripLabel').textContent = state.currentTrip.name;
-      $('#familyBadge').textContent = state.currentFamily ? `${state.currentFamily.name}${state.familyPinVerified ? ' • PIN ativo' : ''}${state.currentMember ? ' • ' + state.currentMember.name : ''}` : 'Sem família ativa';
+      $('#familyBadge').textContent = state.currentFamily ? `${state.currentFamily.name}${state.familyPinVerified ? ' • PIN ativo' : ''}` : 'Sem família ativa';
       const inviteBtn = $('#btnInvite');
       if(inviteBtn) inviteBtn.textContent = 'Enviar no WhatsApp';
       const appCard = $('#screenApp .card');
@@ -581,7 +578,7 @@
         const label = t.id==='chat' && unreadChat>0 ? `${t.label} (${unreadChat})` : t.label;
         const b = el('button', `tab tab-${t.id}` + (state.currentTab===t.id?' active':''));
         b.innerHTML = `<span class="tab-icon"></span><span class="tab-label"><span>${label}</span><small>${subtitles[t.id] || ''}</small></span>`;
-        b.onclick = ()=> { state.currentTab = t.id; renderApp(); };
+        b.onclick = ()=> { state.currentTab = t.id; renderApp(); abrirFormularioNoFluxo(t.id); };
         tabsWrap.appendChild(b);
       });
       renderCurrentTab();
@@ -675,34 +672,6 @@
       if(!state.currentTrip) return;
       localStorage.setItem(`vg_rateio_cfg_${state.currentTrip.id}`, JSON.stringify(cfg||{participants:[]}));
     }
-
-    function getCurrentMemberKey(){ return state.currentTrip ? `vg_current_member_${state.currentTrip.id}` : 'vg_current_member'; }
-    function persistCurrentMember(memberId){
-      if(!state.currentTrip) return;
-      if(memberId) localStorage.setItem(getCurrentMemberKey(), memberId);
-      else localStorage.removeItem(getCurrentMemberKey());
-    }
-    function restoreCurrentMember(){
-      if(!state.currentTrip) return;
-      const memberId = localStorage.getItem(getCurrentMemberKey());
-      if(!memberId){ state.currentMember = null; return; }
-      const member = state.cache.members.find(m=>m.id===memberId);
-      if(!member){ state.currentMember = null; persistCurrentMember(''); return; }
-      state.currentMember = member;
-      const fam = state.cache.families.find(f=>f.id===member.family_id);
-      if(fam){
-        state.currentFamily = fam;
-      }
-    }
-    function setCurrentMember(memberId){
-      const member = state.cache.members.find(m=>m.id===memberId) || null;
-      state.currentMember = member;
-      persistCurrentMember(member?.id || '');
-      return member;
-    }
-    function currentMemberLabel(){
-      return state.currentMember ? `${state.currentMember.name}` : 'Pessoa não identificada';
-    }
     function calculateRateioSettlement(participantIds){
       const selected = [...new Set((participantIds||[]).filter(Boolean))];
       const total = Number(state.cache.expenses.reduce((sum,e)=> sum + Number(e.valor||0), 0).toFixed(2));
@@ -793,6 +762,24 @@
 
     function mount(node){ $('#tabContent').appendChild(node); }
 
+    const tabFormMap = {transporte:'form-transporte', hospedagem:'form-hotel', voos:'form-voo', parques:'form-parque', atracoes:'form-atracao'};
+    function abrirFormularioNoFluxo(tabId){
+      const formId = tabFormMap[tabId];
+      const content = $('#tabContent');
+      if(content) content.classList.add('tab-content-spotlight');
+      setTimeout(()=> content && content.classList.remove('tab-content-spotlight'), 700);
+      if(!formId) return;
+      setTimeout(()=>{
+        const form = document.getElementById(formId);
+        if(!form) return;
+        form.scrollIntoView({behavior:'smooth', block:'start'});
+        form.classList.add('form-spotlight');
+        const input = form.querySelector('input, select, textarea');
+        if(input) input.focus({preventScroll:true});
+        setTimeout(()=>form.classList.remove('form-spotlight'), 1600);
+      }, 120);
+    }
+
     function baseSection(title, subtitle){
       const card = el('div','card');
       card.innerHTML = `<div class="section-header"><div><h3>${title}</h3><div class="muted">${subtitle}</div></div></div>`;
@@ -859,6 +846,7 @@
       card.append(providerCard, el('div','divider'));
 
       const form = el('div','form-grid');
+      form.id = 'form-transporte';
       form.innerHTML = `
         <div class="field"><label>Data e hora</label><input id="fTransferData" type="datetime-local"></div>
         <div class="field"><label>Responsável cadastrado</label><select id="fTransferProvider"><option value="">Selecione</option>${providerOptions}</select></div>
@@ -930,6 +918,7 @@
       const familiesOptions = state.cache.families.map(f=>`<option value="${f.id}">${escapeHtml(f.name)}</option>`).join('');
       const membersOptions = state.cache.members.map(m=>`<option value="${m.id}">${escapeHtml(m.name)} — ${escapeHtml(familyOfMember(m.id)?.name || '')}</option>`).join('');
       const form = el('div','form-grid');
+      form.id = 'form-hotel';
       form.innerHTML = `
         <div class="field"><label>Nome do hotel / pousada</label><input id="fHotelNome" placeholder="Pousada em Penha"></div>
         <div class="field"><label>Família responsável</label><select id="fHotelFamily"><option value="">Selecione</option>${familiesOptions}</select></div>
@@ -1064,6 +1053,7 @@
       const card = baseSection('Voos', 'Trechos públicos. Clique no passageiro para abrir passagem + documento e fazer upload do bilhete.');
       const membersOptions = state.cache.members.map(m=>`<option value="${m.id}">${escapeHtml(m.name)}</option>`).join('');
       const form = el('div','form-grid');
+      form.id = 'form-voo';
       form.innerHTML = `
         <div class="field"><label>Origem</label><input id="fFlightOrigem" placeholder="SJP"></div>
         <div class="field"><label>Destino</label><input id="fFlightDestino" placeholder="NVT"></div>
@@ -1181,6 +1171,7 @@
       const card = baseSection('Parques', 'Clique no participante para abrir ingresso + documento e salvar o ticket individual.');
       const membersOptions = state.cache.members.map(m=>`<option value="${m.id}">${escapeHtml(m.name)}</option>`).join('');
       const form = el('div','form-grid');
+      form.id = 'form-parque';
       form.innerHTML = `
         <div class="field"><label>Nome do parque</label><input id="fParkNome" value="Beto Carrero World"></div>
         <div class="field"><label>Data</label><input id="fParkData" type="date"></div>
@@ -1267,6 +1258,7 @@
       const card = baseSection('Atrações', 'Clique no participante para abrir ingresso da atração + documento pessoal.');
       const membersOptions = state.cache.members.map(m=>`<option value="${m.id}">${escapeHtml(m.name)}</option>`).join('');
       const form = el('div','form-grid');
+      form.id = 'form-atracao';
       form.innerHTML = `
         <div class="field"><label>Nome da atração</label><input id="fAttrNome" placeholder="Excalibur"></div>
         <div class="field"><label>Data e hora</label><input id="fAttrData" type="datetime-local"></div>
@@ -1680,7 +1672,7 @@ END:VCALENDAR`;
       btn.onclick = async ()=>{
         const texto = input.value.trim();
         if(!texto) return;
-        const memberName = state.currentMember ? state.currentMember.name : (state.currentFamily ? `${state.currentFamily.name}` : 'Convidado');
+        const memberName = state.currentFamily ? `${state.currentFamily.name}` : 'Convidado';
         const {error} = await state.supabase.from('messages').insert({trip_id:state.currentTrip.id, member_name:memberName, texto});
         if(error) return showToast(error.message);
         input.value=''; await refreshAll(); renderApp();
@@ -1704,7 +1696,7 @@ END:VCALENDAR`;
       const btnShare = el('button','btn','Compartilhar minha localização');
       btnShare.onclick = async ()=>{
         if(!state.currentFamily) return showToast('Selecione sua família antes.');
-        const member = state.currentMember || membersByFamily(state.currentFamily.id)[0];
+        const member = membersByFamily(state.currentFamily.id)[0];
         if(!member) return showToast('Cadastre ao menos um membro da sua família primeiro.');
         if(!navigator.geolocation) return showToast('Geolocalização não suportada.');
         navigator.geolocation.getCurrentPosition(async pos=>{
@@ -1806,7 +1798,7 @@ END:VCALENDAR`;
         if(!file) return showToast('Selecione uma imagem.');
         const url = await uploadFile('galeria', file, `${state.currentTrip.id}/gallery/${Date.now()}_${file.name}`);
         if(!url) return;
-        const uploader = state.currentMember || (state.currentFamily ? membersByFamily(state.currentFamily.id)[0] : null);
+        const uploader = state.currentFamily ? membersByFamily(state.currentFamily.id)[0] : null;
         const {error} = await state.supabase.from('gallery').insert({
           trip_id: state.currentTrip.id,
           url,
@@ -1869,8 +1861,6 @@ END:VCALENDAR`;
             <h4>Entrar em uma família existente</h4>
             <div class="field"><label>Família</label><select id="familySelect"><option value="">Selecione</option>${options}</select></div>
             <div class="field"><label>PIN da família</label><input id="familyPinInput" type="password" placeholder="4 a 6 dígitos"></div>
-            <div class="field"><label>Quem está usando este aparelho?</label><select id="memberSelect"><option value="">Vou escolher depois</option></select></div>
-            <div class="fine">Depois do PIN, o sistema usa esse nome na localização, chat e uploads.</div>
             <div class="btn-row" style="margin-top:12px"><button class="btn" id="btnEnterFamily">Confirmar PIN</button></div>
           </div>
           <div>
@@ -1881,15 +1871,6 @@ END:VCALENDAR`;
           </div>
         </div>
       `);
-      const syncFamilyMembers = ()=>{
-        const fam = state.cache.families.find(f=>f.id === $('#familySelect').value);
-        const memberSelect = $('#memberSelect');
-        if(!memberSelect) return;
-        const options = fam ? membersByFamily(fam.id).map(m=>`<option value="${m.id}" ${state.currentMember && state.currentMember.id===m.id ? 'selected' : ''}>${escapeHtml(m.name)}</option>`).join('') : '';
-        memberSelect.innerHTML = `<option value="">Vou escolher depois</option>${options}`;
-      };
-      $('#familySelect').onchange = syncFamilyMembers;
-      syncFamilyMembers();
       $('#btnEnterFamily').onclick = ()=>{
         const fam = state.cache.families.find(f=>f.id === $('#familySelect').value);
         const pin = $('#familyPinInput').value.trim();
@@ -1898,11 +1879,7 @@ END:VCALENDAR`;
         state.currentFamily = fam;
         state.familyPinVerified = true;
         state.familyPin = pin;
-        const chosenMemberId = $('#memberSelect').value;
-        if(chosenMemberId) setCurrentMember(chosenMemberId);
-        else if(state.currentMember && state.currentMember.family_id !== fam.id) setCurrentMember('');
         closeModal(); renderApp();
-        if(!state.currentMember) openMemberIdentitySelector();
       };
       $('#btnCreateFamily').onclick = async ()=>{
         const name = $('#newFamilyName').value.trim();
@@ -1910,29 +1887,10 @@ END:VCALENDAR`;
         if(!name || pin.length < 4) return showToast('Informe nome e PIN com pelo menos 4 caracteres.');
         const {data,error} = await state.supabase.from('families').insert({trip_id:state.currentTrip.id, name, pin_hash:pin}).select().single();
         if(error) return showToast(error.message);
-        state.currentFamily = data; state.currentMember = null; persistCurrentMember(''); state.familyPinVerified = true; state.familyPin = pin;
+        state.currentFamily = data; state.familyPinVerified = true; state.familyPin = pin;
         await refreshAll(); closeModal(); renderApp();
         openFamilyMembersManager();
       };
-    }
-
-    function openMemberIdentitySelector(){
-      if(!state.currentFamily) return;
-      const members = membersByFamily(state.currentFamily.id);
-      if(!members.length) return;
-      openModal(`
-        <h3>Quem está usando este aparelho?</h3>
-        <div class="muted">Selecione seu nome para o sistema usar na localização, no chat e nos uploads.</div>
-        <div class="list" style="margin-top:14px">
-          ${members.map(m=>`<button class="btn secondary member-identity" data-id="${m.id}" style="justify-content:flex-start;text-align:left;width:100%">${escapeHtml(m.name)}</button>`).join('')}
-        </div>
-      `);
-      document.querySelectorAll('.member-identity').forEach(btn=> btn.onclick = ()=>{
-        setCurrentMember(btn.dataset.id);
-        closeModal();
-        renderApp();
-        showToast(`Identificado como ${currentMemberLabel()}.`);
-      });
     }
 
     function openFamilyMembersManager(){
@@ -1940,7 +1898,7 @@ END:VCALENDAR`;
       const members = membersByFamily(state.currentFamily.id);
       openModal(`
         <h3>${escapeHtml(state.currentFamily.name)}</h3>
-        <div class="muted">Cadastre os membros da família, os documentos base e identifique quem está usando este aparelho.</div>
+        <div class="muted">Cadastre os membros da família e os documentos base.</div>
         <div class="divider"></div>
         <div class="form-grid">
           <div class="field"><label>Nome do membro</label><input id="newMemberName" placeholder="Rodrigo Morales"></div>
@@ -1949,13 +1907,12 @@ END:VCALENDAR`;
           <div class="field"><label>Telefone emergência</label><input id="newMemberEmergFone" placeholder="(17) 99999-9999"></div>
           <div class="field" style="grid-column:1/-1"><label>Informações médicas</label><textarea id="newMemberInfo" placeholder="Alergias, tipo sanguíneo, remédio contínuo..."></textarea></div>
         </div>
-        <div class="btn-row" style="margin-top:12px"><button class="btn" id="btnAddMember">Adicionar membro</button><button class="btn secondary" id="btnIdentifyMember">Identificar usuário neste aparelho</button></div>
+        <div class="btn-row" style="margin-top:12px"><button class="btn" id="btnAddMember">Adicionar membro</button></div>
         <div class="divider"></div>
         <div class="list">
           ${members.map(m=>`<div class="item"><b>${escapeHtml(m.name)}</b><div class="fine">${escapeHtml(m.emergencia_nome || '')} ${escapeHtml(m.emergencia_fone || '')}</div></div>`).join('') || '<div class="empty">Nenhum membro cadastrado ainda.</div>'}
         </div>
       `);
-      $('#btnIdentifyMember').onclick = ()=> openMemberIdentitySelector();
       $('#btnAddMember').onclick = async ()=>{
         const payload = {
           family_id: state.currentFamily.id,
@@ -2009,7 +1966,7 @@ END:VCALENDAR`;
       $('#btnOpenFamilyModal').onclick = ()=> state.currentTrip ? openFamilyAccess('Selecione, crie ou confirme sua família.') : showToast('Entre em uma viagem primeiro.');
       $('#btnSOS').onclick = openSOS;
       $('#btnLogout').onclick = ()=>{
-        state.currentTrip = null; state.currentFamily = null; state.currentMember = null; state.familyPinVerified = false; state.familyPin=''; persistCurrentMember(''); switchScreen('home');
+        state.currentTrip = null; state.currentFamily = null; state.familyPinVerified = false; state.familyPin=''; switchScreen('home');
       };
     }
 
