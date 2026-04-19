@@ -590,60 +590,41 @@
       if(!state.currentTrip) return;
       localStorage.setItem(`vg_rateio_cfg_${state.currentTrip.id}`, JSON.stringify(cfg||{participants:[]}));
     }
-        function calculateRateioSettlement(){
-      const balancesMap = {};
-      state.cache.members.forEach(m => {
-        balancesMap[m.id] = {
-          id: m.id,
-          name: m.name,
-          pix: m.pix_key || '',
-          paid: 0,
-          share: 0,
-          balance: 0
-        };
-      });
+    function calculateRateioSettlement(participantIds){
+      const selected = [...new Set((participantIds||[]).filter(Boolean))];
+      const total = Number(state.cache.expenses.reduce((sum,e)=> sum + Number(e.valor||0), 0).toFixed(2));
+      const count = selected.length;
+      const perPerson = count ? Number((total / count).toFixed(2)) : 0;
 
-      let total = 0;
-
-      state.cache.expenses.forEach(exp => {
-        const amount = Number(exp.valor || 0);
-        total += amount;
-
-        if (balancesMap[exp.pago_por]) {
-          balancesMap[exp.pago_por].paid = Number((balancesMap[exp.pago_por].paid + amount).toFixed(2));
-        }
-
-        const splits = state.cache.expenseSplits.filter(s => s.expense_id === exp.id);
-        splits.forEach(split => {
-          const part = Number(split.valor_dividido || 0);
-          if (balancesMap[split.member_id]) {
-            balancesMap[split.member_id].share = Number((balancesMap[split.member_id].share + part).toFixed(2));
-          }
-        });
-      });
-
-      const balances = Object.values(balancesMap)
-        .filter(b => b.paid > 0 || b.share > 0)
-        .map(b => {
-          b.balance = Number((b.paid - b.share).toFixed(2));
-          return b;
+      const balances = state.cache.members
+        .filter(m=> selected.includes(m.id))
+        .map(m=>{
+          const paid = Number(state.cache.expenses
+            .filter(e=>e.pago_por===m.id)
+            .reduce((sum,e)=> sum + Number(e.valor||0), 0)
+            .toFixed(2));
+          const share = perPerson;
+          const balance = Number((paid - share).toFixed(2));
+          return {id:m.id, name:m.name, pix:m.pix_key||'', paid, share, balance};
         });
 
       const creditors = balances
-        .filter(b => b.balance > 0.009)
-        .map(b => ({...b, amount: Number(b.balance.toFixed(2))}));
+        .filter(b=>b.balance > 0.009)
+        .sort((a,b)=>b.balance-a.balance)
+        .map(b=>({...b, amount:Number(b.balance.toFixed(2))}));
 
       const debtors = balances
-        .filter(b => b.balance < -0.009)
-        .map(b => ({...b, amount: Number(Math.abs(b.balance).toFixed(2))}));
+        .filter(b=>b.balance < -0.009)
+        .sort((a,b)=>Math.abs(b.balance)-Math.abs(a.balance))
+        .map(b=>({...b, amount:Number(Math.abs(b.balance).toFixed(2))}));
 
       const settlements = [];
       let i = 0;
       let j = 0;
 
-      while (i < debtors.length && j < creditors.length) {
+      while(i < debtors.length && j < creditors.length){
         const amt = Math.min(debtors[i].amount, creditors[j].amount);
-        if (amt > 0.009) {
+        if(amt > 0.009){
           settlements.push({
             from: debtors[i],
             to: creditors[j],
@@ -652,17 +633,11 @@
           debtors[i].amount = Number((debtors[i].amount - amt).toFixed(2));
           creditors[j].amount = Number((creditors[j].amount - amt).toFixed(2));
         }
-        if (debtors[i].amount <= 0.009) i += 1;
-        if (creditors[j].amount <= 0.009) j += 1;
+        if(debtors[i].amount <= 0.009) i += 1;
+        if(creditors[j].amount <= 0.009) j += 1;
       }
 
-      return {
-        total: Number(total.toFixed(2)),
-        count: balances.length,
-        perPerson: balances.length ? Number((balances.reduce((sum, b) => sum + Number(b.share || 0), 0) / balances.length).toFixed(2)) : 0,
-        balances,
-        settlements
-      };
+      return {total, count, perPerson, balances, settlements};
     }
 
     function renderCurrentTab(){
@@ -1327,9 +1302,10 @@ END:VCALENDAR`;
       URL.revokeObjectURL(url);
     }
 
-        function renderRateios(){
-      const card = baseSection('Rateios', 'Lance o gasto, escolha quem vai dividir e o sistema calcula automaticamente quem deve pagar e quem tem a receber.');
+    function renderRateios(){
+      const card = baseSection('Rateios', 'Cadastre os gastos normalmente. Depois, abaixo do total, marque quem entra no rateio final e o sistema sugere quem paga para quem.');
       const memberOptions = state.cache.members.map(m=>`<option value="${m.id}">${escapeHtml(m.name)}</option>`).join('');
+
       const form = el('div','form-grid');
       form.innerHTML = `
         <div class="field"><label>Descrição</label><input id="fExpenseDesc" placeholder="Uber aeroporto"></div>
@@ -1337,7 +1313,6 @@ END:VCALENDAR`;
         <div class="field"><label>Data</label><input id="fExpenseDate" type="date"></div>
         <div class="field"><label>Quem pagou</label><select id="fExpensePayer"><option value="">Selecione</option>${memberOptions}</select></div>
         <div class="field"><label>Categoria</label><input id="fExpenseCategory" placeholder="Transporte, mercado, ingresso..."></div>
-        <div class="field" style="grid-column:1/-1"><label>Quem vai dividir esse gasto</label><div id="fExpenseSplitChecks" class="grid grid-3">${state.cache.members.map(m=>`<label class="item" style="padding:10px"><input type="checkbox" name="expenseSplit" value="${m.id}"> ${escapeHtml(m.name)}</label>`).join("")}</div></div>
         <div class="field" style="grid-column:1/-1"><label>Comprovante (opcional)</label><input id="fExpenseProof" type="file" accept=".pdf,image/*"></div>
       `;
       const btn = el('button','btn','Salvar gasto');
@@ -1345,9 +1320,7 @@ END:VCALENDAR`;
         const desc = $('#fExpenseDesc').value.trim();
         const val = Number($('#fExpenseValue').value || 0);
         const payerId = $('#fExpensePayer').value;
-        const splitIds = checkedValues('expenseSplit');
         if(!desc || !val || !payerId) return showToast('Preencha descrição, valor e quem pagou.');
-        if(!splitIds.length) return showToast('Selecione pelo menos uma pessoa para dividir esse gasto.');
 
         const payload = {
           trip_id: state.currentTrip.id,
@@ -1368,84 +1341,119 @@ END:VCALENDAR`;
         const expenseInsert = await state.supabase.from('expenses').insert(payload).select('id').single();
         if(expenseInsert.error || !expenseInsert.data?.id) return showToast(expenseInsert.error?.message || 'Não foi possível salvar o gasto.');
 
-        const total = Math.round(val * 100);
-        const base = Math.floor(total / splitIds.length);
-        let remainder = total - (base * splitIds.length);
-        const splits = splitIds.map(id=>{
-          const extra = remainder > 0 ? 1 : 0;
-          if(remainder > 0) remainder -= 1;
-          return {expense_id: expenseInsert.data.id, member_id: id, valor_dividido: Number(((base + extra) / 100).toFixed(2))};
-        });
-
-        const splitInsert = await state.supabase.from('expense_splits').insert(splits);
-        if(splitInsert.error){
-          await state.supabase.from('expenses').delete().eq('id', expenseInsert.data.id);
-          return showToast(splitInsert.error.message || 'Não foi possível salvar o rateio deste gasto.');
-        }
-
         $('#fExpenseDesc').value=''; $('#fExpenseValue').value=''; $('#fExpenseDate').value=''; $('#fExpensePayer').value=''; $('#fExpenseCategory').value=''; $('#fExpenseProof').value='';
-        document.querySelectorAll('input[name="expenseSplit"]').forEach(i=> i.checked = false);
-
         await refreshAll(); renderApp(); showToast('Gasto salvo com sucesso.');
       };
       card.append(form, btn, el('div','divider'));
 
-      const previewSelected = checkedValues('expenseSplit').length;
-      const previewValue = Number($('#fExpenseValue')?.value || 0);
-      const previewPerPerson = previewSelected ? Number((previewValue / previewSelected).toFixed(2)) : 0;
+      const cfg = getRateioConfig();
+      const chosen = cfg.participants?.length ? cfg.participants : [];
+      const result = calculateRateioSettlement(chosen);
 
-      const result = calculateRateioSettlement();
       const header = el('div','grid grid-3');
       header.innerHTML = `
-        <div class="stat"><div class="fine">Total gasto</div><div class="kpi" style="font-size:22px">${formatMoney(result.total)}</div></div>
-        <div class="stat"><div class="fine">Participantes envolvidos</div><div class="kpi" style="font-size:22px">${previewSelected || result.count}</div></div>
-        <div class="stat"><div class="fine">Média por participante</div><div class="kpi" style="font-size:22px">${formatMoney(previewSelected ? previewPerPerson : result.perPerson)}</div></div>`;
-      card.append(header);
+        <div class="stat"><div class="fine">Total gasto</div><div class="kpi" style="font-size:26px">${formatMoney(result.total)}</div></div>
+        <div class="stat"><div class="fine">Participantes do rateio</div><div class="kpi" style="font-size:26px">${result.count}</div></div>
+        <div class="stat"><div class="fine">Cota por pessoa</div><div class="kpi" style="font-size:26px">${formatMoney(result.perPerson)}</div></div>`;
+      card.append(header, el('div','divider'));
 
-      const bindPreview = ()=>{
-        const selected = checkedValues('expenseSplit').length;
-        const val = Number($('#fExpenseValue').value || 0);
-        const cards = header.querySelectorAll('.kpi');
-        cards[1].textContent = String(selected || result.count);
-        cards[2].textContent = formatMoney(selected ? Number((val / selected).toFixed(2)) : result.perPerson);
+      const settleBox = el('div','form-grid');
+      settleBox.innerHTML = `
+        <div class="field" style="grid-column:1/-1">
+          <label>Quem participa do rateio final</label>
+          <div class="grid grid-3">
+            ${state.cache.members.map(m=>`<label class="item" style="padding:10px"><input type="checkbox" name="rateioParticipants" value="${m.id}" ${chosen.includes(m.id)?'checked':''}> ${escapeHtml(m.name)}</label>`).join('')}
+          </div>
+          <div class="fine">Aqui entram todos que vão dividir o total dos gastos, mesmo quem não pagou nada.</div>
+        </div>
+      `;
+      const calcBtn = el('button','btn','Aplicar participantes do rateio');
+      calcBtn.onclick = ()=>{
+        const participants = checkedValues('rateioParticipants');
+        setRateioConfig({participants});
+        renderApp();
       };
-      setTimeout(()=>{
-        $('#fExpenseValue')?.addEventListener('input', bindPreview);
-        document.querySelectorAll('input[name="expenseSplit"]').forEach(i=> i.addEventListener('change', bindPreview));
-      },0);
+      card.append(settleBox, calcBtn, el('div','divider'));
 
-      const summary = el('div','grid grid-3');
-      result.balances.forEach(b=>{
-        const status = b.balance > 0 ? `Tem a receber ${formatMoney(b.balance)}` : b.balance < 0 ? `Deve pagar ${formatMoney(Math.abs(b.balance))}` : 'Quitado';
-        const it = el('div','stat');
-        it.innerHTML = `<div class="fine">${escapeHtml(b.name)}</div><div class="kpi" style="font-size:22px">${formatMoney(b.balance)}</div><div class="fine">Pagou ${formatMoney(b.paid)} • Sua parte ${formatMoney(b.share)}</div><div class="fine"><b>${status}</b></div>`;
-        summary.appendChild(it);
-      });
+      const summary = el('div','grid grid-2');
+      if(!result.balances.length){
+        summary.innerHTML = '<div class="empty">Selecione quem participa do rateio final para calcular quem deve pagar e quem tem a receber.</div>';
+      } else {
+        result.balances
+          .sort((a,b)=>Math.abs(b.balance)-Math.abs(a.balance))
+          .forEach(b=>{
+            const positive = b.balance > 0.009;
+            const negative = b.balance < -0.009;
+            const status = positive ? 'TEM A RECEBER' : negative ? 'DEVE PAGAR' : 'QUITADO';
+            const amount = positive ? b.balance : Math.abs(b.balance);
+            const color = positive ? '#16a34a' : negative ? '#dc2626' : '#374151';
+            const bg = positive ? '#f0fdf4' : negative ? '#fef2f2' : '#f8fafc';
+            const it = el('div','stat');
+            it.style.background = bg;
+            it.innerHTML = `
+              <div class="fine">${escapeHtml(b.name)}</div>
+              <div style="font-size:14px;font-weight:800;color:${color};margin-top:8px">${status}</div>
+              <div class="kpi" style="font-size:34px;color:${color};line-height:1.1">${formatMoney(amount)}</div>
+              <div class="fine">Pagou ${formatMoney(b.paid)} • Sua parte ${formatMoney(b.share)}</div>
+              ${b.pix ? `<div class="fine" style="margin-top:8px"><b>PIX:</b> ${escapeHtml(b.pix)}</div>` : ''}
+              ${b.pix ? `<div class="inline-actions"><button class="btn secondary small copy-pix">Copiar PIX</button></div>` : ''}
+            `;
+            if(b.pix){
+              it.querySelector('.copy-pix').onclick = async ()=>{
+                try{
+                  await navigator.clipboard.writeText(b.pix);
+                  showToast('Chave PIX copiada.');
+                }catch(e){
+                  showToast(b.pix);
+                }
+              };
+            }
+            summary.appendChild(it);
+          });
+      }
       card.append(summary, el('div','divider'));
 
       const settlementList = el('div','list');
-      if(!result.settlements.length) settlementList.innerHTML = '<div class="empty">Sem acertos pendentes.</div>';
-      result.settlements.forEach(s=>{
-        const item = el('div','item');
-        item.innerHTML = `<div class="item-head"><div><b>${escapeHtml(s.from.name)}</b> deve fazer PIX de <b>${formatMoney(s.amount)}</b> para <b>${escapeHtml(s.to.name)}</b></div>${s.to.pix ? `<button class="btn secondary small">Copiar PIX</button>`:''}</div>`;
-        if(s.to.pix) item.querySelector('button').onclick = async ()=>{ try{ await navigator.clipboard.writeText(s.to.pix); showToast('Chave PIX copiada.'); }catch(e){ showToast(s.to.pix); } };
-        settlementList.appendChild(item);
-      });
-      card.append(el('h3','', 'Acerto final'), settlementList, el('div','divider'));
+      if(!result.settlements.length){
+        settlementList.innerHTML = '<div class="empty">Sem acertos pendentes.</div>';
+      } else {
+        result.settlements.forEach(s=>{
+          const item = el('div','item');
+          item.innerHTML = `
+            <div class="item-head">
+              <div>
+                <div style="font-size:22px;font-weight:900;color:#dc2626">${escapeHtml(s.from.name)} paga ${formatMoney(s.amount)}</div>
+                <div style="font-size:18px;font-weight:800;color:#16a34a">para ${escapeHtml(s.to.name)}</div>
+                ${s.to.pix ? `<div class="fine" style="margin-top:8px"><b>PIX de ${escapeHtml(s.to.name)}:</b> ${escapeHtml(s.to.pix)}</div>` : ''}
+              </div>
+              ${s.to.pix ? `<button class="btn secondary small copy-settlement-pix">Copiar PIX</button>` : ''}
+            </div>`;
+          if(s.to.pix){
+            item.querySelector('.copy-settlement-pix').onclick = async ()=>{
+              try{
+                await navigator.clipboard.writeText(s.to.pix);
+                showToast('Chave PIX copiada.');
+              }catch(e){
+                showToast(s.to.pix);
+              }
+            };
+          }
+          settlementList.appendChild(item);
+        });
+      }
+      card.append(el('h3','', 'Sugestão de acerto'), settlementList, el('div','divider'));
 
       const list = el('div','list');
       if(!state.cache.expenses.length) list.innerHTML = '<div class="empty">Nenhum gasto comum cadastrado.</div>';
       state.cache.expenses.forEach(e=>{
         const payer = state.cache.members.find(m=>m.id===e.pago_por);
-        const participants = state.cache.expenseSplits.filter(s=>s.expense_id===e.id).map(s=>state.cache.members.find(m=>m.id===s.member_id)?.name).filter(Boolean);
         const item = el('div','item');
         item.innerHTML = `
           <div class="item-head">
             <div>
               <b>${escapeHtml(e.descricao)}</b>
               <div class="fine">${formatMoney(e.valor)} • ${formatDate(e.data)} • Pagou: ${escapeHtml(payer?.name || '-')}</div>
-              <div class="fine">Vai dividir com: ${participants.length ? escapeHtml(participants.join(', ')) : 'Não informado'}</div>
-              ${e.comprovante_url ? `<div class="inline-actions">${renderOpenOriginal(e.comprovante_url,'Abrir comprovante')}</div>` : ''}
+              ${e.comprovante_url ? `<div class="inline-actions"><a class="btn secondary small" href="${e.comprovante_url}" target="_blank">Abrir comprovante</a></div>`:''}
             </div>
             <div class="btn-row"><button class="btn danger small delete-expense">Excluir</button></div>
           </div>`;
