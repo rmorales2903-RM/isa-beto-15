@@ -9,101 +9,102 @@
 <meta content="#2563eb" name="theme-color"/>
 <style>
     :root{
-      --blue:#2563eb;
-      --blue-2:#1d4ed8;
-      --blue-3:#dbeafe;
-      --bg:#f3f4f6;
+      --primary:#4b1fa6;
+      --primary-2:#35156f;
+      --primary-3:#ede9fe;
+      --bg:#eef1f5;
+      --bg-2:#f8fafc;
       --card:#ffffff;
-      --text:#374151;
+      --text:#1f2937;
       --muted:#6b7280;
-      --border:#d1d5db;
+      --border:#d7dce5;
       --danger:#dc2626;
+      --danger-bg:#fef2f2;
       --success:#16a34a;
-      --shadow:0 10px 25px rgba(15,23,42,.08);
-      --radius:18px;
+      --success-bg:#f0fdf4;
+      --warning:#f59e0b;
+      --shadow:0 16px 38px rgba(17,24,39,.10);
+      --shadow-soft:0 8px 24px rgba(17,24,39,.06);
+      --radius:24px;
     }
     *{box-sizing:border-box}
     body{
       margin:0;font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;
-      background:linear-gradient(180deg,#eff6ff 0,#f3f4f6 120px);
+      background:linear-gradient(180deg,#2d115f 0,#4b1fa6 160px,#eef1f5 161px,#eef1f5 100%);
       color:var(--text);
     }
     .hidden{display:none!important}
-    .app-shell{max-width:1180px;margin:0 auto;padding:16px 16px 90px}
+    .app-shell{max-width:1180px;margin:0 auto;padding:14px 14px 90px}
     .topbar{
       display:flex;gap:12px;align-items:center;justify-content:space-between;margin-bottom:16px;
-      background:rgba(255,255,255,.8);backdrop-filter: blur(14px);border:1px solid rgba(255,255,255,.5);
-      box-shadow:var(--shadow);padding:14px 16px;border-radius:24px;position:sticky;top:8px;z-index:30;
+      background:rgba(255,255,255,.94);backdrop-filter: blur(14px);border:1px solid rgba(255,255,255,.75);
+      box-shadow:var(--shadow);padding:16px 18px;border-radius:28px;position:sticky;top:8px;z-index:30;
     }
     .brand{display:flex;gap:12px;align-items:center}
     .brand-badge{
-      width:44px;height:44px;border-radius:14px;background:linear-gradient(135deg,var(--blue),#60a5fa);
-      display:grid;place-items:center;color:#fff;font-weight:800;box-shadow:var(--shadow)
+      width:48px;height:48px;border-radius:16px;background:linear-gradient(135deg,var(--primary),#7c3aed);
+      display:grid;place-items:center;color:#fff;font-weight:900;box-shadow:var(--shadow-soft);flex:0 0 auto
     }
-    h1,h2,h3{margin:0}
+    h1,h2,h3,h4{margin:0}
     .muted{color:var(--muted)}
     .grid{display:grid;gap:16px}
     .grid-2{grid-template-columns:repeat(2,minmax(0,1fr))}
     .grid-3{grid-template-columns:repeat(3,minmax(0,1fr))}
     .card{
-      background:var(--card);border:1px solid rgba(209,213,219,.65);box-shadow:var(--shadow);
-      border-radius:var(--radius);padding:16px;
+      background:var(--card);border:1px solid rgba(215,220,229,.85);box-shadow:var(--shadow-soft);
+      border-radius:var(--radius);padding:18px;
     }
-    .hero{
-      display:grid;grid-template-columns:1.2fr .8fr;gap:18px;align-items:stretch
-    }
-    .hero .card{padding:22px}
+    .hero{display:grid;grid-template-columns:1.2fr .8fr;gap:18px;align-items:stretch}
+    .hero .card{padding:24px}
     .btn{
-      border:none;border-radius:14px;padding:12px 16px;font-weight:700;cursor:pointer;
-      background:var(--blue);color:#fff;box-shadow:0 8px 20px rgba(37,99,235,.22)
+      border:none;border-radius:16px;padding:13px 16px;font-weight:800;cursor:pointer;
+      background:linear-gradient(135deg,var(--primary),#6d28d9);color:#fff;box-shadow:0 10px 24px rgba(76,29,149,.24)
     }
-    .btn:hover{background:var(--blue-2)}
+    .btn:hover{filter:brightness(.98)}
     .btn.secondary{background:#fff;color:var(--text);border:1px solid var(--border);box-shadow:none}
-    .btn.ghost{background:transparent;color:var(--blue);box-shadow:none;border:1px dashed #93c5fd}
-    .btn.danger{background:var(--danger)}
-    .btn.success{background:var(--success)}
-    .btn.small{padding:8px 12px;border-radius:12px;font-size:13px}
+    .btn.ghost{background:transparent;color:var(--primary);box-shadow:none;border:1px dashed #c4b5fd}
+    .btn.danger{background:linear-gradient(135deg,#dc2626,#ef4444)}
+    .btn.success{background:linear-gradient(135deg,#16a34a,#22c55e)}
+    .btn.small{padding:9px 12px;border-radius:13px;font-size:13px}
     .btn-row{display:flex;gap:10px;flex-wrap:wrap}
     input,select,textarea{
-      width:100%;padding:12px 13px;border-radius:14px;border:1px solid var(--border);
+      width:100%;padding:13px 14px;border-radius:16px;border:1px solid var(--border);
       background:#fff;color:var(--text);font:inherit;outline:none
     }
+    input:focus,select:focus,textarea:focus{border-color:#b197fc;box-shadow:0 0 0 4px rgba(109,40,217,.10)}
     textarea{min-height:120px;resize:vertical}
-    label{font-weight:700;font-size:14px;margin-bottom:6px;display:block}
+    label{font-weight:800;font-size:14px;margin-bottom:6px;display:block}
     .field{display:grid;gap:6px}
     .form-grid{display:grid;gap:12px;grid-template-columns:repeat(2,minmax(0,1fr))}
-    .tabs{
-      display:flex;gap:10px;overflow:auto;padding-bottom:4px;margin:14px 0 16px
-    }
+    .tabs{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin:14px 0 16px}
     .tab{
-      white-space:nowrap;padding:11px 14px;border-radius:999px;border:1px solid var(--border);
-      background:#fff;cursor:pointer;font-weight:700;color:var(--muted)
+      padding:14px 14px;border-radius:22px;border:1px solid var(--border);background:#fff;cursor:pointer;font-weight:800;color:var(--text);
+      display:flex;align-items:center;gap:12px;min-height:78px;box-shadow:var(--shadow-soft);text-align:left
     }
-    .tab.active{background:var(--blue);border-color:var(--blue);color:#fff}
+    .tab.active{background:linear-gradient(135deg,var(--primary),#6d28d9);border-color:transparent;color:#fff;box-shadow:0 14px 26px rgba(76,29,149,.28)}
+    .tab-icon{
+      width:44px;height:44px;border-radius:14px;background:linear-gradient(135deg,var(--primary-3),#ddd6fe);position:relative;flex:0 0 auto;
+    }
+    .tab.active .tab-icon{background:rgba(255,255,255,.18)}
+    .tab-label{display:flex;flex-direction:column;gap:2px;line-height:1.1}
+    .tab-label small{font-size:11px;color:inherit;opacity:.72;font-weight:700}
     .section-header{display:flex;justify-content:space-between;gap:12px;align-items:flex-start;margin-bottom:14px}
     .list{display:grid;gap:12px}
-    .item{
-      padding:14px;border:1px solid #e5e7eb;border-radius:16px;background:#fff;
-    }
+    .item{padding:15px;border:1px solid #e7ebf2;border-radius:18px;background:#fff;box-shadow:var(--shadow-soft)}
     .item-head{display:flex;justify-content:space-between;gap:12px;align-items:flex-start}
     .pill{
-      display:inline-flex;gap:6px;align-items:center;padding:7px 10px;border-radius:999px;
-      background:var(--blue-3);color:var(--blue-2);font-weight:700;font-size:12px
+      display:inline-flex;gap:6px;align-items:center;padding:8px 11px;border-radius:999px;
+      background:var(--primary-3);color:var(--primary);font-weight:800;font-size:12px
     }
     .stats{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}
-    .stat{background:#fff;border:1px solid #e5e7eb;border-radius:16px;padding:14px}
-    .kpi{font-size:28px;font-weight:800}
-    .modal{
-      position:fixed;inset:0;background:rgba(15,23,42,.55);display:none;align-items:flex-end;justify-content:center;
-      padding:16px;z-index:100;
-    }
+    .stat{background:#fff;border:1px solid #e7ebf2;border-radius:20px;padding:15px;box-shadow:var(--shadow-soft)}
+    .kpi{font-size:28px;font-weight:900;line-height:1.05}
+    .modal{position:fixed;inset:0;background:rgba(15,23,42,.60);display:none;align-items:flex-end;justify-content:center;padding:16px;z-index:100}
     .modal.open{display:flex}
-    .modal-card{
-      width:min(920px,100%);max-height:92vh;overflow:auto;background:#fff;border-radius:24px;padding:18px;box-shadow:var(--shadow)
-    }
+    .modal-card{width:min(980px,100%);max-height:92vh;overflow:auto;background:#fff;border-radius:28px;padding:18px;box-shadow:var(--shadow)}
     .split{display:grid;grid-template-columns:1fr 1fr;gap:16px}
     .media-box{
-      min-height:240px;border:1px dashed #93c5fd;border-radius:18px;background:#f8fbff;padding:12px;
+      min-height:240px;border:1px dashed #c4b5fd;border-radius:20px;background:#faf7ff;padding:12px;
       display:grid;place-items:center;overflow:hidden
     }
     .gallery-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:12px}
@@ -111,25 +112,85 @@
     .gallery-card img{width:100%;height:140px;object-fit:cover;border-radius:14px;background:#eef2ff}
     .fine{font-size:12px;color:var(--muted)}
     .inline-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
-    .empty{padding:24px;text-align:center;color:var(--muted);border:1px dashed #d1d5db;border-radius:18px}
-    .divider{height:1px;background:#e5e7eb;margin:14px 0}
-    .sos{
-      position:fixed;right:16px;bottom:100px;border-radius:999px;padding:14px 18px;background:#dc2626;color:#fff;
-      font-weight:800;border:none;box-shadow:var(--shadow);cursor:pointer;z-index:40
-    }
-    .auth-note{background:#eff6ff;border:1px solid #bfdbfe;color:#1d4ed8;padding:12px 14px;border-radius:16px}
-    .code-badge{
-      font-size:24px;font-weight:900;letter-spacing:2px;padding:10px 14px;background:#eff6ff;color:#1d4ed8;border-radius:16px;display:inline-block
-    }
+    .empty{padding:24px;text-align:center;color:var(--muted);border:1px dashed #d1d5db;border-radius:18px;background:#fff}
+    .divider{height:1px;background:#eceff5;margin:16px 0}
+    .sos{position:fixed;right:16px;bottom:18px;border-radius:999px;padding:16px 20px;background:#dc2626;color:#fff;font-weight:900;border:none;box-shadow:var(--shadow);cursor:pointer;z-index:40}
+    .auth-note{background:#f5f3ff;border:1px solid #ddd6fe;color:#5b21b6;padding:12px 14px;border-radius:16px}
+    .code-badge{font-size:24px;font-weight:900;letter-spacing:2px;padding:10px 14px;background:#f5f3ff;color:#5b21b6;border-radius:16px;display:inline-block}
     .row{display:flex;gap:12px;align-items:center;flex-wrap:wrap}
     .nowrap{white-space:nowrap}
     .tableish{display:grid;gap:10px}
     .table-row{display:grid;grid-template-columns:1.1fr .9fr .9fr .6fr;gap:10px;padding:10px 0;border-bottom:1px solid #f1f5f9}
     .table-row.header{font-weight:800;color:#6b7280}
     .viewer-iframe{width:100%;height:420px;border:none;border-radius:18px;background:#f3f4f6}
+
+    .section-card-title{font-size:20px;font-weight:900;margin-bottom:6px}
+    .panel-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+    .doc-layout{display:grid;gap:16px}
+    .doc-preview-card,.doc-upload-card,.rateio-summary-card,.rateio-balance-card,.settlement-card{
+      background:#fff;border:1px solid #e7ebf2;border-radius:22px;padding:16px;box-shadow:var(--shadow-soft)
+    }
+    .doc-preview-card h4,.doc-upload-card h4,.rateio-summary-card h4{margin-bottom:6px}
+    .doc-upload-card{background:#fcfbff}
+    .doc-actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:10px}
+    .rateio-hero{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
+    .rateio-summary-card{background:linear-gradient(135deg,var(--primary),#6d28d9);color:#fff;border:none;box-shadow:0 14px 28px rgba(76,29,149,.28)}
+    .rateio-summary-card .fine{color:rgba(255,255,255,.82)}
+    .rateio-balance-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+    .rateio-balance-card.recebe{background:var(--success-bg);border-color:#bbf7d0}
+    .rateio-balance-card.paga{background:var(--danger-bg);border-color:#fecaca}
+    .rateio-balance-card.quitado{background:#f8fafc}
+    .rateio-status{font-size:12px;font-weight:900;letter-spacing:.4px;margin-bottom:8px}
+    .rateio-value{font-size:34px;font-weight:900;line-height:1.05;margin:6px 0}
+    .settlement-card{display:grid;gap:10px}
+    .settlement-head{display:flex;justify-content:space-between;gap:12px;align-items:center}
+    .settlement-flow{font-size:16px;font-weight:900}
+    .settlement-flow strong{color:var(--danger)}
+    .settlement-flow span{color:var(--success)}
+    .tab-icon::before,.tab-icon::after{content:"";position:absolute;background:currentColor}
+    .tab{--icon-color:#5b21b6}
+    .tab.active{--icon-color:#fff}
+    .tab-icon{color:var(--icon-color)}
+    .tab-roteiro .tab-icon::before{width:18px;height:14px;border:2px solid currentColor;border-top:none;border-radius:0 0 6px 6px;left:13px;top:14px;background:transparent}
+    .tab-roteiro .tab-icon::after{width:16px;height:2px;left:14px;top:12px;box-shadow:0 6px 0 currentColor,0 12px 0 currentColor}
+    .tab-transporte .tab-icon::before{width:20px;height:10px;left:12px;top:16px;border-radius:6px 6px 3px 3px;background:currentColor}
+    .tab-transporte .tab-icon::after{width:6px;height:6px;left:14px;top:28px;border-radius:50%;box-shadow:12px 0 0 currentColor}
+    .tab-hospedagem .tab-icon::before{width:20px;height:16px;left:12px;top:14px;border:2px solid currentColor;background:transparent}
+    .tab-hospedagem .tab-icon::after{width:6px;height:6px;left:18px;top:18px;box-shadow:8px 0 0 currentColor,0 8px 0 currentColor,8px 8px 0 currentColor}
+    .tab-voos .tab-icon::before{width:20px;height:2px;left:12px;top:21px;transform:rotate(35deg)}
+    .tab-voos .tab-icon::after{width:8px;height:8px;left:18px;top:16px;transform:skewX(-20deg);border-top:2px solid currentColor;border-right:2px solid currentColor;background:transparent}
+    .tab-parques .tab-icon::before{width:20px;height:14px;left:12px;top:14px;border:2px solid currentColor;border-radius:10px 10px 4px 4px;background:transparent}
+    .tab-parques .tab-icon::after{width:14px;height:2px;left:15px;top:22px;box-shadow:0 -6px 0 currentColor,0 6px 0 currentColor}
+    .tab-atracoes .tab-icon::before{width:16px;height:16px;left:14px;top:14px;border-radius:50%;border:2px solid currentColor;background:transparent}
+    .tab-atracoes .tab-icon::after{width:2px;height:16px;left:21px;top:14px;box-shadow:-7px 7px 0 -1px currentColor,7px 7px 0 -1px currentColor}
+    .tab-alarmes .tab-icon::before{width:16px;height:16px;left:14px;top:14px;border-radius:50%;border:2px solid currentColor;background:transparent}
+    .tab-alarmes .tab-icon::after{width:2px;height:6px;left:21px;top:18px;box-shadow:4px 4px 0 currentColor,-9px -4px 0 -1px currentColor,9px -4px 0 -1px currentColor}
+    .tab-rateios .tab-icon::before{width:18px;height:18px;left:13px;top:13px;border-radius:50%;border:2px solid currentColor;background:transparent}
+    .tab-rateios .tab-icon::after{width:10px;height:2px;left:17px;top:21px;box-shadow:0 -6px 0 currentColor,0 6px 0 currentColor}
+    .tab-chat .tab-icon::before{width:20px;height:14px;left:12px;top:14px;border-radius:10px;background:currentColor}
+    .tab-chat .tab-icon::after{width:8px;height:8px;left:16px;top:24px;transform:rotate(45deg)}
+    .tab-ponto .tab-icon::before{width:16px;height:16px;left:14px;top:12px;border-radius:50% 50% 50% 0;transform:rotate(-45deg);border:2px solid currentColor;background:transparent}
+    .tab-ponto .tab-icon::after{width:4px;height:4px;left:20px;top:20px;border-radius:50%}
+    .tab-documentos .tab-icon::before{width:16px;height:20px;left:14px;top:12px;border:2px solid currentColor;border-radius:4px;background:transparent}
+    .tab-documentos .tab-icon::after{width:8px;height:2px;left:18px;top:18px;box-shadow:0 6px 0 currentColor,0 12px 0 currentColor}
+    .tab-galeria .tab-icon::before{width:20px;height:16px;left:12px;top:14px;border:2px solid currentColor;border-radius:4px;background:transparent}
+    .tab-galeria .tab-icon::after{width:12px;height:8px;left:16px;top:20px;clip-path:polygon(0 100%,35% 40%,60% 70%,78% 48%,100% 100%);}
+
     @media (max-width:900px){
-      .hero,.split,.grid-2,.grid-3,.form-grid,.stats,.table-row{grid-template-columns:1fr}
+      .hero,.split,.grid-2,.grid-3,.form-grid,.stats,.table-row,.rateio-hero,.rateio-balance-grid{grid-template-columns:1fr}
       .topbar{position:static}
+      .tabs{grid-template-columns:repeat(2,minmax(0,1fr))}
+    }
+    @media (max-width:560px){
+      .app-shell{padding:12px 12px 96px}
+      .topbar{padding:14px 14px 16px;border-radius:24px}
+      .brand-badge{width:44px;height:44px}
+      .tabs{gap:10px}
+      .tab{min-height:74px;padding:12px;border-radius:18px}
+      .tab-icon{width:40px;height:40px;border-radius:13px}
+      .kpi{font-size:24px}
+      .rateio-value{font-size:30px}
+      .viewer-iframe{height:360px}
     }
   </style>
 </head>
@@ -494,14 +555,25 @@
       $('#tripCode').textContent = state.currentTrip.code;
       $('#topTripLabel').textContent = state.currentTrip.name;
       $('#familyBadge').textContent = state.currentFamily ? `${state.currentFamily.name}${state.familyPinVerified ? ' • PIN ativo' : ''}` : 'Sem família ativa';
+      const inviteBtn = $('#btnInvite');
+      if(inviteBtn) inviteBtn.textContent = 'Enviar no WhatsApp';
+      const appCard = $('#screenApp .card');
+      if(appCard){
+        appCard.style.background = 'linear-gradient(180deg, rgba(255,255,255,.98), rgba(255,255,255,.94))';
+      }
 
       const tabsWrap = $('#tabs');
       tabsWrap.innerHTML = '';
       const unreadChat = getChatUnreadCount();
+      const subtitles = {
+        roteiro:'Plano da viagem', transporte:'Traslados e contatos', hospedagem:'Reservas e vouchers', voos:'Passagens e CPF',
+        parques:'Ingressos do parque', atracoes:'Ingressos extras', alarmes:'Lembretes', rateios:'Quem paga quem',
+        chat:'Mensagens do grupo', ponto:'Localização', documentos:'Arquivos da família', galeria:'Fotos e mídia'
+      };
       tabs.forEach(t=>{
         const label = t.id==='chat' && unreadChat>0 ? `${t.label} (${unreadChat})` : t.label;
-        const b = el('button', 'tab' + (state.currentTab===t.id?' active':''), label);
-        if(t.id==='chat' && unreadChat>0 && state.currentTab!=='chat') b.style.background = '#dc2626';
+        const b = el('button', `tab tab-${t.id}` + (state.currentTab===t.id?' active':''));
+        b.innerHTML = `<span class="tab-icon"></span><span class="tab-label"><span>${label}</span><small>${subtitles[t.id] || ''}</small></span>`;
         b.onclick = ()=> { state.currentTab = t.id; renderApp(); };
         tabsWrap.appendChild(b);
       });
@@ -638,6 +710,33 @@
       }
 
       return {total, count, perPerson, balances, settlements};
+    }
+
+
+    function copyText(value, fallbackLabel='Conteúdo'){
+      if(!value) return showToast(`${fallbackLabel} indisponível.`);
+      navigator.clipboard.writeText(value).then(()=>showToast(`${fallbackLabel} copiado.`)).catch(()=>showToast(value));
+    }
+
+    function buildDocumentModalLayout({title, subtitle='', previewTitle='Arquivo', previewUrl='', previewEmpty='Nenhum arquivo enviado.', uploadLabel='Enviar arquivo', uploadInputId='uploadFile', primaryButtonId='btnSaveFile', primaryButtonText='Salvar arquivo', extraPreview='', extraActions=''}){
+      return `
+        <div class="doc-layout">
+          <div class="doc-preview-card">
+            <h3>${title}</h3>
+            ${subtitle ? `<div class="fine" style="margin-top:6px">${subtitle}</div>` : ''}
+            ${extraActions ? `<div class="doc-actions">${extraActions}</div>` : ''}
+            <div class="divider"></div>
+            <h4>${previewTitle}</h4>
+            ${renderDocViewer(previewUrl, previewEmpty)}
+            ${extraPreview ? `<div class="divider"></div>${extraPreview}` : ''}
+          </div>
+          <div class="doc-upload-card">
+            <h4>${uploadLabel}</h4>
+            <div class="fine">A atualização fica separada da visualização para o layout ficar limpo no celular.</div>
+            <div class="field" style="margin-top:12px"><input id="${uploadInputId}" type="file" accept=".pdf,image/*"></div>
+            <div class="btn-row" style="margin-top:12px"><button class="btn" id="${primaryButtonId}">${primaryButtonText}</button><button class="btn secondary" id="btnCloseDocModal">Fechar</button></div>
+          </div>
+        </div>`;
     }
 
     function renderCurrentTab(){
@@ -878,16 +977,19 @@
       const ref = hotelRef(hotel.id);
       const voucherDoc = docByRef('hotel_voucher', ref, state.currentFamily.id);
       const meta = getEntityMeta('hotels', hotel.id);
-      openModal(`
-        <h3>${escapeHtml(hotel.nome)}</h3>
-        <div class="fine">${formatDate(hotel.checkin)} até ${formatDate(hotel.checkout)} ${meta.reserva_numero ? '• Reserva '+escapeHtml(meta.reserva_numero):''}</div>
-        <div class="inline-actions" style="margin-top:10px">${renderWhatsApp(hotel.contato,'WhatsApp')} ${renderMaps(hotel.endereco)} ${renderOpenOriginal(voucherDoc?.arquivo_url)}</div>
-        <div class="divider"></div>
-        <div class="field"><label>Enviar / atualizar comprovante da hospedagem</label><input id="uploadHotelVoucher" type="file" accept=".pdf,image/*"></div>
-        <div class="btn-row" style="margin-top:10px"><button class="btn" id="btnSaveHotelVoucher">Salvar comprovante</button></div>
-        <div class="divider"></div>
-        ${renderDocViewer(voucherDoc?.arquivo_url, 'Nenhum voucher enviado ainda para sua família.')}
-      `);
+      openModal(buildDocumentModalLayout({
+        title: escapeHtml(hotel.nome),
+        subtitle: `${formatDate(hotel.checkin)} até ${formatDate(hotel.checkout)} ${meta.reserva_numero ? '• Reserva '+escapeHtml(meta.reserva_numero):''}`,
+        previewTitle: 'Voucher da hospedagem',
+        previewUrl: voucherDoc?.arquivo_url || '',
+        previewEmpty: 'Nenhum voucher enviado ainda para sua família.',
+        uploadLabel: 'Atualizar comprovante da hospedagem',
+        uploadInputId: 'uploadHotelVoucher',
+        primaryButtonId: 'btnSaveHotelVoucher',
+        primaryButtonText: 'Salvar comprovante',
+        extraActions: `${renderWhatsApp(hotel.contato,'WhatsApp')} ${renderMaps(hotel.endereco)} ${renderOpenOriginal(voucherDoc?.arquivo_url)}`
+      }));
+      $('#btnCloseDocModal').onclick = closeModal;
       $('#btnSaveHotelVoucher').onclick = async ()=>{
         const file = $('#uploadHotelVoucher').files[0];
         if(!file) return showToast('Selecione um arquivo.');
@@ -994,29 +1096,28 @@
         return openFamilyAccess('Para abrir passagem e CPF de um passageiro, primeiro confirme o PIN da família correspondente.');
       }
       const ticket = ticketForFlight(flightId, memberId);
-      openModal(`
-        <div class="split">
-          <div>
-            <h3>${escapeHtml(member.name)}</h3>
-            <div class="fine">${escapeHtml(flight.origem||'')} → ${escapeHtml(flight.destino||'')} • ${escapeHtml(flight.cia||'')} ${escapeHtml(flight.numero_voo||'')}</div>
-            <div class="fine">Localizador: ${escapeHtml(ticket?.localizador || '')}</div>
-            <div class="divider"></div>
-            <div class="field"><label>Enviar / atualizar passagem</label><input id="uploadFlightTicket" type="file" accept=".pdf,image/*"></div>
-            <div class="field"><label>Localizador / reserva</label><input id="flightTicketLocator" value="${escapeHtml(ticket?.localizador || flight.localizador || flight.numero_reserva || '')}" placeholder="ABC123"></div>
-            <div class="btn-row" style="margin-top:10px"><button class="btn" id="btnSaveFlightTicket">Salvar passagem</button></div>
-            <div class="inline-actions" style="margin-top:10px">${renderOpenOriginal(ticket?.ticket_url)}</div>
-            <div class="divider"></div>
-            <div class="media-box">${ticket?.ticket_url ? `<iframe class="viewer-iframe" src="${ticket.ticket_url}"></iframe>` : 'Nenhuma passagem enviada ainda.'}</div>
-          </div>
-          <div>
-            <h3>CPF</h3>
-            <div class="fine">Documento do membro</div>
-            <div class="inline-actions" style="margin:10px 0">${renderOpenOriginal(member.cpf_file_url)}</div>
-            <div class="divider"></div>
-            <div class="media-box">${member.cpf_file_url ? `<iframe class="viewer-iframe" src="${member.cpf_file_url}"></iframe>` : 'CPF não enviado ainda.'}</div>
-          </div>
-        </div>
-      `);
+      const locator = escapeHtml(ticket?.localizador || flight.localizador || flight.numero_reserva || '');
+      const cpfPreview = `
+        <h4>CPF do passageiro</h4>
+        <div class="doc-actions">${renderOpenOriginal(member.cpf_file_url)}</div>
+        <div class="media-box" style="margin-top:10px">${member.cpf_file_url ? `<iframe class="viewer-iframe" src="${member.cpf_file_url}"></iframe>` : 'CPF não enviado ainda.'}</div>`;
+      openModal(buildDocumentModalLayout({
+        title: escapeHtml(member.name),
+        subtitle: `${escapeHtml(flight.origem||'')} → ${escapeHtml(flight.destino||'')} • ${escapeHtml(flight.cia||'')} ${escapeHtml(flight.numero_voo||'')} ${locator ? '• Localizador '+locator : ''}`,
+        previewTitle: 'Passagem / bilhete',
+        previewUrl: ticket?.ticket_url || '',
+        previewEmpty: 'Nenhuma passagem enviada ainda.',
+        uploadLabel: 'Atualizar passagem',
+        uploadInputId: 'uploadFlightTicket',
+        primaryButtonId: 'btnSaveFlightTicket',
+        primaryButtonText: 'Salvar passagem',
+        extraActions: `${renderOpenOriginal(ticket?.ticket_url)}`,
+        extraPreview: `
+          <div class="field"><label>Localizador / reserva</label><input id="flightTicketLocator" value="${locator}" placeholder="ABC123"></div>
+          <div class="divider"></div>
+          ${cpfPreview}`
+      }));
+      $('#btnCloseDocModal').onclick = closeModal;
       $('#btnSaveFlightTicket').onclick = ()=> saveFlightTicket(flightId, memberId, $('#uploadFlightTicket').files[0], $('#flightTicketLocator').value.trim());
     }
 
@@ -1090,25 +1191,24 @@
         return openFamilyAccess('Confirme o PIN da família para abrir ingresso e CPF.');
       }
       const ticket = ticketForPark(parkId, memberId);
-      openModal(`
-        <div class="split">
-          <div>
-            <h3>${escapeHtml(park.nome)} • ${escapeHtml(member.name)}</h3>
-            <div class="fine">Ingresso do parque</div>
-            <div class="divider"></div>
-            <div class="field"><label>Enviar / atualizar ingresso</label><input id="uploadParkTicket" type="file" accept=".pdf,image/*"></div>
-            <div class="btn-row" style="margin-top:10px"><button class="btn" id="btnSaveParkTicket">Salvar ingresso</button></div>
-            <div class="inline-actions" style="margin-top:10px">${renderOpenOriginal(ticket?.ticket_url)}</div>
-            <div class="divider"></div>
-            <div class="media-box">${ticket?.ticket_url ? `<iframe class="viewer-iframe" src="${ticket.ticket_url}"></iframe>` : 'Nenhum ingresso enviado ainda.'}</div>
-          </div>
-          <div>
-            <h3>CPF</h3>
-            <div class="inline-actions" style="margin-bottom:10px">${renderOpenOriginal(member.cpf_file_url)}</div>
-            <div class="media-box">${member.cpf_file_url ? `<iframe class="viewer-iframe" src="${member.cpf_file_url}"></iframe>` : 'CPF não enviado.'}</div>
-          </div>
-        </div>
-      `);
+      const cpfPreview = `
+        <h4>CPF do participante</h4>
+        <div class="doc-actions">${renderOpenOriginal(member.cpf_file_url)}</div>
+        <div class="media-box" style="margin-top:10px">${member.cpf_file_url ? `<iframe class="viewer-iframe" src="${member.cpf_file_url}"></iframe>` : 'CPF não enviado.'}</div>`;
+      openModal(buildDocumentModalLayout({
+        title: `${escapeHtml(park.nome)} • ${escapeHtml(member.name)}`,
+        subtitle: `${formatDate(park.data)}`,
+        previewTitle: 'Ingresso do parque',
+        previewUrl: ticket?.ticket_url || '',
+        previewEmpty: 'Nenhum ingresso enviado ainda.',
+        uploadLabel: 'Atualizar ingresso do parque',
+        uploadInputId: 'uploadParkTicket',
+        primaryButtonId: 'btnSaveParkTicket',
+        primaryButtonText: 'Salvar ingresso',
+        extraActions: `${renderOpenOriginal(ticket?.ticket_url)}`,
+        extraPreview: cpfPreview
+      }));
+      $('#btnCloseDocModal').onclick = closeModal;
       $('#btnSaveParkTicket').onclick = ()=> saveParkTicket(parkId, memberId, $('#uploadParkTicket').files[0]);
     }
 
@@ -1178,23 +1278,24 @@
         return openFamilyAccess('Confirme o PIN da família para abrir ingresso e CPF.');
       }
       const ticket = ticketForAttraction(attractionId, memberId);
-      openModal(`
-        <div class="split">
-          <div>
-            <h3>${escapeHtml(attraction.nome)} • ${escapeHtml(member.name)}</h3>
-            <div class="field"><label>Enviar / atualizar ingresso</label><input id="uploadAttrTicket" type="file" accept=".pdf,image/*"></div>
-            <div class="btn-row" style="margin-top:10px"><button class="btn" id="btnSaveAttrTicket">Salvar ingresso</button></div>
-            <div class="inline-actions" style="margin-top:10px">${renderOpenOriginal(ticket?.ticket_url)}</div>
-            <div class="divider"></div>
-            <div class="media-box">${ticket?.ticket_url ? `<iframe class="viewer-iframe" src="${ticket.ticket_url}"></iframe>` : 'Nenhum ingresso enviado ainda.'}</div>
-          </div>
-          <div>
-            <h3>CPF</h3>
-            <div class="inline-actions" style="margin-bottom:10px">${renderOpenOriginal(member.cpf_file_url)}</div>
-            <div class="media-box">${member.cpf_file_url ? `<iframe class="viewer-iframe" src="${member.cpf_file_url}"></iframe>` : 'CPF não enviado.'}</div>
-          </div>
-        </div>
-      `);
+      const cpfPreview = `
+        <h4>CPF do participante</h4>
+        <div class="doc-actions">${renderOpenOriginal(member.cpf_file_url)}</div>
+        <div class="media-box" style="margin-top:10px">${member.cpf_file_url ? `<iframe class="viewer-iframe" src="${member.cpf_file_url}"></iframe>` : 'CPF não enviado.'}</div>`;
+      openModal(buildDocumentModalLayout({
+        title: `${escapeHtml(attraction.nome)} • ${escapeHtml(member.name)}`,
+        subtitle: `${formatDate(attraction.data_hora)}`,
+        previewTitle: 'Ingresso da atração',
+        previewUrl: ticket?.ticket_url || '',
+        previewEmpty: 'Nenhum ingresso enviado ainda.',
+        uploadLabel: 'Atualizar ingresso da atração',
+        uploadInputId: 'uploadAttrTicket',
+        primaryButtonId: 'btnSaveAttrTicket',
+        primaryButtonText: 'Salvar ingresso',
+        extraActions: `${renderOpenOriginal(ticket?.ticket_url)}`,
+        extraPreview: cpfPreview
+      }));
+      $('#btnCloseDocModal').onclick = closeModal;
       $('#btnSaveAttrTicket').onclick = ()=> saveAttractionTicket(attractionId, memberId, $('#uploadAttrTicket').files[0]);
     }
 
@@ -1303,7 +1404,7 @@ END:VCALENDAR`;
     }
 
     function renderRateios(){
-      const card = baseSection('Rateios', 'Cadastre os gastos normalmente. Depois, abaixo do total, marque quem entra no rateio final e o sistema sugere quem paga para quem.');
+      const card = baseSection('Rateios', 'Cadastre os gastos normalmente. Depois marque quem entra no rateio final e o sistema sugere quem paga para quem.');
       const memberOptions = state.cache.members.map(m=>`<option value="${m.id}">${escapeHtml(m.name)}</option>`).join('');
 
       const form = el('div','form-grid');
@@ -1350,23 +1451,22 @@ END:VCALENDAR`;
       const chosen = cfg.participants?.length ? cfg.participants : [];
       const result = calculateRateioSettlement(chosen);
 
-      const header = el('div','grid grid-3');
-      header.innerHTML = `
-        <div class="stat"><div class="fine">Total gasto</div><div class="kpi" style="font-size:26px">${formatMoney(result.total)}</div></div>
-        <div class="stat"><div class="fine">Participantes do rateio</div><div class="kpi" style="font-size:26px">${result.count}</div></div>
-        <div class="stat"><div class="fine">Cota por pessoa</div><div class="kpi" style="font-size:26px">${formatMoney(result.perPerson)}</div></div>`;
-      card.append(header, el('div','divider'));
+      const hero = el('div','rateio-hero');
+      hero.innerHTML = `
+        <div class="rateio-summary-card"><div class="fine">Total gasto</div><div class="kpi">${formatMoney(result.total)}</div></div>
+        <div class="rateio-summary-card"><div class="fine">Participantes</div><div class="kpi">${result.count}</div></div>
+        <div class="rateio-summary-card"><div class="fine">Por pessoa</div><div class="kpi">${formatMoney(result.perPerson)}</div></div>`;
+      card.append(hero, el('div','divider'));
 
       const settleBox = el('div','form-grid');
       settleBox.innerHTML = `
         <div class="field" style="grid-column:1/-1">
           <label>Quem participa do rateio final</label>
-          <div class="grid grid-3">
-            ${state.cache.members.map(m=>`<label class="item" style="padding:10px"><input type="checkbox" name="rateioParticipants" value="${m.id}" ${chosen.includes(m.id)?'checked':''}> ${escapeHtml(m.name)}</label>`).join('')}
+          <div class="panel-grid">
+            ${state.cache.members.map(m=>`<label class="item" style="padding:12px"><input type="checkbox" name="rateioParticipants" value="${m.id}" ${chosen.includes(m.id)?'checked':''}> ${escapeHtml(m.name)}</label>`).join('')}
           </div>
           <div class="fine">Aqui entram todos que vão dividir o total dos gastos, mesmo quem não pagou nada.</div>
-        </div>
-      `;
+        </div>`;
       const calcBtn = el('button','btn','Aplicar participantes do rateio');
       calcBtn.onclick = ()=>{
         const participants = checkedValues('rateioParticipants');
@@ -1375,41 +1475,29 @@ END:VCALENDAR`;
       };
       card.append(settleBox, calcBtn, el('div','divider'));
 
-      const summary = el('div','grid grid-2');
+      const summary = el('div','rateio-balance-grid');
       if(!result.balances.length){
         summary.innerHTML = '<div class="empty">Selecione quem participa do rateio final para calcular quem deve pagar e quem tem a receber.</div>';
       } else {
-        result.balances
-          .sort((a,b)=>Math.abs(b.balance)-Math.abs(a.balance))
-          .forEach(b=>{
-            const positive = b.balance > 0.009;
-            const negative = b.balance < -0.009;
-            const status = positive ? 'TEM A RECEBER' : negative ? 'DEVE PAGAR' : 'QUITADO';
-            const amount = positive ? b.balance : Math.abs(b.balance);
-            const color = positive ? '#16a34a' : negative ? '#dc2626' : '#374151';
-            const bg = positive ? '#f0fdf4' : negative ? '#fef2f2' : '#f8fafc';
-            const it = el('div','stat');
-            it.style.background = bg;
-            it.innerHTML = `
-              <div class="fine">${escapeHtml(b.name)}</div>
-              <div style="font-size:14px;font-weight:800;color:${color};margin-top:8px">${status}</div>
-              <div class="kpi" style="font-size:34px;color:${color};line-height:1.1">${formatMoney(amount)}</div>
-              <div class="fine">Pagou ${formatMoney(b.paid)} • Sua parte ${formatMoney(b.share)}</div>
-              ${b.pix ? `<div class="fine" style="margin-top:8px"><b>PIX:</b> ${escapeHtml(b.pix)}</div>` : ''}
-              ${b.pix ? `<div class="inline-actions"><button class="btn secondary small copy-pix">Copiar PIX</button></div>` : ''}
-            `;
-            if(b.pix){
-              it.querySelector('.copy-pix').onclick = async ()=>{
-                try{
-                  await navigator.clipboard.writeText(b.pix);
-                  showToast('Chave PIX copiada.');
-                }catch(e){
-                  showToast(b.pix);
-                }
-              };
-            }
-            summary.appendChild(it);
-          });
+        result.balances.sort((a,b)=>Math.abs(b.balance)-Math.abs(a.balance)).forEach(b=>{
+          const positive = b.balance > 0.009;
+          const negative = b.balance < -0.009;
+          const status = positive ? 'TEM A RECEBER' : negative ? 'DEVE PAGAR' : 'QUITADO';
+          const amount = positive ? b.balance : Math.abs(b.balance);
+          const cls = positive ? 'recebe' : negative ? 'paga' : 'quitado';
+          const it = el('div',`rateio-balance-card ${cls}`);
+          it.innerHTML = `
+            <div class="fine">${escapeHtml(b.name)}</div>
+            <div class="rateio-status">${status}</div>
+            <div class="rateio-value">${formatMoney(amount)}</div>
+            <div class="fine">Pagou ${formatMoney(b.paid)} • Sua parte ${formatMoney(b.share)}</div>
+            ${b.pix ? `<div class="fine" style="margin-top:8px"><b>PIX:</b> ${escapeHtml(b.pix)}</div>` : ''}
+            ${b.pix ? `<div class="doc-actions"><button class="btn secondary small copy-pix">Copiar PIX</button></div>` : ''}`;
+          if(b.pix){
+            it.querySelector('.copy-pix').onclick = ()=> copyText(b.pix, 'PIX');
+          }
+          summary.appendChild(it);
+        });
       }
       card.append(summary, el('div','divider'));
 
@@ -1417,27 +1505,30 @@ END:VCALENDAR`;
       if(!result.settlements.length){
         settlementList.innerHTML = '<div class="empty">Sem acertos pendentes.</div>';
       } else {
-        result.settlements.forEach(s=>{
-          const item = el('div','item');
+        result.settlements.forEach((s, idx)=>{
+          const item = el('div','settlement-card');
           item.innerHTML = `
-            <div class="item-head">
+            <div class="settlement-head">
               <div>
-                <div style="font-size:22px;font-weight:900;color:#dc2626">${escapeHtml(s.from.name)} paga ${formatMoney(s.amount)}</div>
-                <div style="font-size:18px;font-weight:800;color:#16a34a">para ${escapeHtml(s.to.name)}</div>
-                ${s.to.pix ? `<div class="fine" style="margin-top:8px"><b>PIX de ${escapeHtml(s.to.name)}:</b> ${escapeHtml(s.to.pix)}</div>` : ''}
+                <div class="settlement-flow"><strong>${escapeHtml(s.from.name)}</strong> paga <span>${escapeHtml(s.to.name)}</span></div>
+                <div class="fine">Sugestão de acerto automático</div>
               </div>
+              <div class="kpi" style="font-size:30px">${formatMoney(s.amount)}</div>
+            </div>
+            ${s.to.pix ? `<div class="fine"><b>PIX de ${escapeHtml(s.to.name)}:</b> ${escapeHtml(s.to.pix)}</div>` : ''}
+            <div class="doc-actions">
               ${s.to.pix ? `<button class="btn secondary small copy-settlement-pix">Copiar PIX</button>` : ''}
+              <button class="btn success small mark-paid" data-key="${idx}">Marcar como pago</button>
             </div>`;
           if(s.to.pix){
-            item.querySelector('.copy-settlement-pix').onclick = async ()=>{
-              try{
-                await navigator.clipboard.writeText(s.to.pix);
-                showToast('Chave PIX copiada.');
-              }catch(e){
-                showToast(s.to.pix);
-              }
-            };
+            item.querySelector('.copy-settlement-pix').onclick = ()=> copyText(s.to.pix, 'PIX');
           }
+          item.querySelector('.mark-paid').onclick = (ev)=>{
+            ev.currentTarget.textContent = 'Pago';
+            ev.currentTarget.disabled = true;
+            ev.currentTarget.classList.remove('success');
+            ev.currentTarget.classList.add('secondary');
+          };
           settlementList.appendChild(item);
         });
       }
