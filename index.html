@@ -909,7 +909,7 @@
       if(!ev.alarm_time || !ev.alarm_key) return '';
       const on = isAlarmToggleOn(ev.alarm_key);
       const alarmTime = getAlarmTimeValue(ev.alarm_key, ev.alarm_time);
-      return `<div class="roteiro-alarm-inline"><span class="roteiro-alarm-icon" aria-hidden="true"></span><span class="roteiro-alarm-label">Alarme</span><input class="roteiro-alarm-input" type="time" value="${escapeHtml(alarmTime)}" data-alarm-time-key="${escapeHtml(ev.alarm_key)}"><span class="roteiro-alarm-time">${escapeHtml(alarmTime)}</span><button class="roteiro-alarm-toggle ${on ? 'on':'off'}" data-alarm-key="${escapeHtml(ev.alarm_key)}">${on ? 'Ligado':'Desligado'}</button></div>`;
+      return `<div class="roteiro-alarm-inline"><span class="roteiro-alarm-icon" aria-hidden="true"></span><span class="roteiro-alarm-label">Alarme</span><input class="roteiro-alarm-input" type="time" value="${escapeHtml(alarmTime)}" data-alarm-time-key="${escapeHtml(ev.alarm_key)}"><span class="roteiro-alarm-time">${escapeHtml(alarmTime || '--:--')}</span><button class="roteiro-alarm-toggle ${on ? 'on':'off'}" data-alarm-key="${escapeHtml(ev.alarm_key)}">${on ? 'Ligado':'Desligado'}</button></div>`;
     }
     function getTripDays(){
       const out = [];
@@ -1204,6 +1204,18 @@
         btn.classList.toggle('off', !next);
         btn.textContent = next ? 'Ligado' : 'Desligado';
       });
+      document.querySelectorAll('[data-alarm-time-key]').forEach(input=> {
+        const updateAlarmTime = ()=>{
+          const key = input.dataset.alarmTimeKey;
+          const value = input.value || '';
+          setAlarmTimeValue(key, value);
+          const wrap = input.closest('.roteiro-alarm-inline');
+          const label = wrap ? wrap.querySelector('.roteiro-alarm-time') : null;
+          if(label) label.textContent = value || '--:--';
+        };
+        input.addEventListener('change', updateAlarmTime);
+        input.addEventListener('input', updateAlarmTime);
+      });
     }
 
 
@@ -1283,8 +1295,6 @@
         if(error) return showToast(error.message);
         await refreshAll(); renderApp();
       };
-      card.append(form, btn, el('div','divider'));
-
       const list = el('div','list');
       if(!state.cache.transfers.length) list.innerHTML = '<div class="empty">Nenhum translado cadastrado.</div>';
       state.cache.transfers.forEach(t=>{
@@ -1303,7 +1313,7 @@
         item.querySelector('.delete-transfer').onclick = ()=> deleteTransfer(t.id);
         list.appendChild(item);
       });
-      card.append(list);
+      card.append(list, el('div','divider'), form, btn);
       mount(card);
     }
 
@@ -1356,7 +1366,6 @@
         await refreshAll(); renderApp();
       };
       btns.append(btnAdd);
-      card.append(form, btns, el('div','divider'));
       const list = el('div','list');
       if(!state.cache.hotels.length) list.innerHTML = '<div class="empty">Nenhuma hospedagem cadastrada.</div>';
       state.cache.hotels.forEach(h=>{
@@ -1391,7 +1400,7 @@
         buttons[2].onclick = ()=> deleteHotel(h.id);
         list.appendChild(item);
       });
-      card.append(list);
+      card.append(list, el('div','divider'), form, btns);
       mount(card);
     }
 
@@ -1488,7 +1497,6 @@
         }
         await refreshAll(); renderApp();
       };
-      card.append(form, btn, el('div','divider'));
       const list = el('div','list');
       if(!state.cache.flights.length) list.innerHTML = '<div class="empty">Nenhum voo cadastrado.</div>';
       state.cache.flights.forEach(f=>{
@@ -1511,7 +1519,7 @@
         item.querySelector('.delete-flight').onclick = ()=> deleteFlight(f.id);
         list.appendChild(item);
       });
-      card.append(list);
+      card.append(list, el('div','divider'), form, btn);
       mount(card);
     }
 
@@ -1587,7 +1595,6 @@
         }
         await refreshAll(); renderApp();
       };
-      card.append(form, btn, el('div','divider'));
       const list = el('div','list');
       if(!state.cache.parks.length) list.innerHTML = '<div class="empty">Nenhum parque cadastrado.</div>';
       state.cache.parks.forEach(p=>{
@@ -1607,7 +1614,7 @@
         item.querySelector('.delete-park').onclick = ()=> deletePark(p.id);
         list.appendChild(item);
       });
-      card.append(list);
+      card.append(list, el('div','divider'), form, btn);
       mount(card);
     }
 
@@ -1675,7 +1682,6 @@
         }
         await refreshAll(); renderApp();
       };
-      card.append(form, btn, el('div','divider'));
       const list = el('div','list');
       if(!state.cache.attractions.length) list.innerHTML = '<div class="empty">Nenhuma atração cadastrada.</div>';
       state.cache.attractions.forEach(a=>{
@@ -1695,7 +1701,7 @@
         item.querySelector('.delete-attr').onclick = ()=> deleteAttraction(a.id);
         list.appendChild(item);
       });
-      card.append(list);
+      card.append(list, el('div','divider'), form, btn);
       mount(card);
     }
 
@@ -1781,7 +1787,6 @@
         if(error) return showToast(error.message);
         await refreshAll(); renderApp();
       };
-      card.append(form, btn, el('div','divider'));
       const allAlarms = [
         ...getDerivedAlarms().map(x=>({...x, automatico:true, key:`auto-${x.tipo}-${x.source_id}`})),
         ...state.cache.alarms.map(x=>({...x, automatico:false, key:`manual-${x.id}`}))
@@ -1807,7 +1812,7 @@
         const delAlarm = item.querySelector('.delete-alarm'); if(delAlarm) delAlarm.onclick = ()=> deleteAlarm(a.id);
         list.appendChild(item);
       });
-      card.append(list);
+      card.append(list, el('div','divider'), form, btn);
       mount(card);
     }
 
@@ -1875,8 +1880,6 @@ END:VCALENDAR`;
         $('#fExpenseDesc').value=''; $('#fExpenseValue').value=''; $('#fExpenseDate').value=''; $('#fExpensePayer').value=''; $('#fExpenseCategory').value=''; $('#fExpenseProof').value='';
         await refreshAll(); renderApp(); showToast('Gasto salvo com sucesso.');
       };
-      card.append(form, btn, el('div','divider'));
-
       const cfg = getRateioConfig();
       const chosen = cfg.participants?.length ? cfg.participants : [];
       const result = calculateRateioSettlement(chosen);
