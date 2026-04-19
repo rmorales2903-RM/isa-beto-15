@@ -753,7 +753,9 @@
               <div class="inline-actions">${renderWhatsApp(t.contato || '', 'WhatsApp')} ${renderMaps(t.destino || '')}</div>
               <div class="fine">${escapeHtml(t.obs || '')}</div>
             </div>
+            <div class="btn-row"><button class="btn danger small delete-transfer">Excluir</button></div>
           </div>`;
+        item.querySelector('.delete-transfer').onclick = ()=> deleteTransfer(t.id);
         list.appendChild(item);
       });
       card.append(list);
@@ -833,11 +835,13 @@
             <div class="btn-row">
               <button class="btn secondary small">Meu voucher</button>
               <button class="btn secondary small">CPF dos hóspedes</button>
+              <button class="btn danger small">Excluir</button>
             </div>
           </div>`;
         const buttons = item.querySelectorAll('button');
         buttons[0].onclick = ()=> openHotelVoucher(h, guests);
         buttons[1].onclick = ()=> openFamilyDocsByHotel(h, guests);
+        buttons[2].onclick = ()=> deleteHotel(h.id);
         list.appendChild(item);
       });
       card.append(list);
@@ -949,8 +953,10 @@
               <div class="inline-actions">${pax.map(p=>`<button class="btn secondary small pax-btn" data-member="${p.id}">${escapeHtml(p.name)} • Passagem + CPF</button>`).join('') || '<span class="fine">Sem passageiros vinculados.</span>'}</div>
               <div class="fine" style="margin-top:8px">Se o botão do passageiro aparecer, é por ali que você envia a passagem individual e visualiza junto com o CPF.</div>
             </div>
+            <div class="btn-row"><button class="btn danger small delete-flight">Excluir</button></div>
           </div>`;
         item.querySelectorAll('.pax-btn').forEach(b=> b.onclick = ()=> openFlightMember(f.id, b.dataset.member));
+        item.querySelector('.delete-flight').onclick = ()=> deleteFlight(f.id);
         list.appendChild(item);
       });
       card.append(list);
@@ -1043,8 +1049,10 @@
               <div class="fine" style="margin:8px 0 6px">Clique no participante para abrir ingresso + CPF:</div>
               <div class="inline-actions">${participants.map(m=>`<button class="btn secondary small park-btn" data-member="${m.id}">${escapeHtml(m.name)} • Ingresso + CPF</button>`).join('') || '<span class="fine">Sem participantes.</span>'}</div>
             </div>
+            <div class="btn-row"><button class="btn danger small delete-park">Excluir</button></div>
           </div>`;
         item.querySelectorAll('.park-btn').forEach(b=> b.onclick = ()=> openParkMember(p.id, b.dataset.member));
+        item.querySelector('.delete-park').onclick = ()=> deletePark(p.id);
         list.appendChild(item);
       });
       card.append(list);
@@ -1129,8 +1137,10 @@
               <div class="fine" style="margin:8px 0 6px">Clique no participante para abrir ingresso + CPF:</div>
               <div class="inline-actions">${participants.map(m=>`<button class="btn secondary small attr-btn" data-member="${m.id}">${escapeHtml(m.name)} • Ingresso + CPF</button>`).join('') || '<span class="fine">Sem participantes.</span>'}</div>
             </div>
+            <div class="btn-row"><button class="btn danger small delete-attr">Excluir</button></div>
           </div>`;
         item.querySelectorAll('.attr-btn').forEach(b=> b.onclick = ()=> openAttractionMember(a.id, b.dataset.member));
+        item.querySelector('.delete-attr').onclick = ()=> deleteAttraction(a.id);
         list.appendChild(item);
       });
       card.append(list);
@@ -1237,9 +1247,11 @@
             </div>
             <div class="btn-row">
               <button class="btn secondary small">Baixar .ics</button>
+              ${a.automatico ? '' : '<button class="btn danger small delete-alarm">Excluir</button>'}
             </div>
           </div>`;
         item.querySelector('button').onclick = ()=> downloadICS(a);
+        const delAlarm = item.querySelector('.delete-alarm'); if(delAlarm) delAlarm.onclick = ()=> deleteAlarm(a.id);
         list.appendChild(item);
       });
       card.append(list);
@@ -1378,11 +1390,91 @@ END:VCALENDAR`;
               <div class="fine">Participaram desta conta: ${participants.length ? escapeHtml(participants.join(', ')) : 'Não informado'}</div>
               ${e.comprovante_url ? `<div class="inline-actions"><a class="btn secondary small" href="${e.comprovante_url}" target="_blank">Abrir comprovante</a></div>`:''}
             </div>
+            <div class="btn-row"><button class="btn danger small delete-expense">Excluir</button></div>
           </div>`;
+        item.querySelector('.delete-expense').onclick = ()=> deleteExpense(e.id);
         list.appendChild(item);
       });
       card.append(el('h3','', 'Histórico de gastos'), list);
       mount(card);
+    }
+
+    async function deleteStorageUrl(url){
+      if(!url) return;
+      try{
+        const m = String(url).match(/\/storage\/v1\/object\/public\/([^\/]+)\/(.+)$/);
+        if(!m) return;
+        const bucket = decodeURIComponent(m[1]);
+        const path = decodeURIComponent(m[2]);
+        await state.supabase.storage.from(bucket).remove([path]);
+      }catch(e){}
+    }
+
+    async function deleteExpense(id){
+      if(!confirm('Excluir este gasto?')) return;
+      const exp = state.cache.expenses.find(x=>x.id===id);
+      if(exp?.comprovante_url) await deleteStorageUrl(exp.comprovante_url);
+      await state.supabase.from('expense_splits').delete().eq('expense_id', id);
+      const {error} = await state.supabase.from('expenses').delete().eq('id', id);
+      if(error) return showToast(error.message);
+      await refreshAll(); renderApp(); showToast('Gasto excluído.');
+    }
+
+    async function deleteTransfer(id){
+      if(!confirm('Excluir este translado?')) return;
+      const {error} = await state.supabase.from('transfers').delete().eq('id', id);
+      if(error) return showToast(error.message);
+      await refreshAll(); renderApp(); showToast('Transporte excluído.');
+    }
+
+    async function deleteHotel(id){
+      if(!confirm('Excluir esta hospedagem?')) return;
+      const hotel = state.cache.hotels.find(x=>x.id===id);
+      const docs = state.cache.documents.filter(d=> d.tipo==='hotel_voucher' && d.atracao_nome===hotelRef(id));
+      for(const d of docs){ if(d.arquivo_url) await deleteStorageUrl(d.arquivo_url); }
+      await state.supabase.from('documents').delete().eq('tipo','hotel_voucher').eq('atracao_nome', hotelRef(id));
+      await state.supabase.from('hotel_guests').delete().eq('hotel_id', id);
+      const {error} = await state.supabase.from('hotels').delete().eq('id', id);
+      if(error) return showToast(error.message);
+      await refreshAll(); renderApp(); showToast('Hospedagem excluída.');
+    }
+
+    async function deleteFlight(id){
+      if(!confirm('Excluir este voo?')) return;
+      const tickets = state.cache.flightTickets.filter(t=> t.flight_id===id);
+      for(const t of tickets){ if(t.ticket_url) await deleteStorageUrl(t.ticket_url); }
+      await state.supabase.from('flight_tickets').delete().eq('flight_id', id);
+      await state.supabase.from('flight_passengers').delete().eq('flight_id', id);
+      const {error} = await state.supabase.from('flights').delete().eq('id', id);
+      if(error) return showToast(error.message);
+      await refreshAll(); renderApp(); showToast('Voo excluído.');
+    }
+
+    async function deletePark(id){
+      if(!confirm('Excluir este parque?')) return;
+      const tickets = state.cache.parkTickets.filter(t=> t.park_id===id);
+      for(const t of tickets){ if(t.ticket_url) await deleteStorageUrl(t.ticket_url); }
+      await state.supabase.from('park_tickets').delete().eq('park_id', id);
+      const {error} = await state.supabase.from('parks').delete().eq('id', id);
+      if(error) return showToast(error.message);
+      await refreshAll(); renderApp(); showToast('Parque excluído.');
+    }
+
+    async function deleteAttraction(id){
+      if(!confirm('Excluir esta atração?')) return;
+      const tickets = state.cache.attractionTickets.filter(t=> t.attraction_id===id);
+      for(const t of tickets){ if(t.ticket_url) await deleteStorageUrl(t.ticket_url); }
+      await state.supabase.from('attraction_tickets').delete().eq('attraction_id', id);
+      const {error} = await state.supabase.from('attractions').delete().eq('id', id);
+      if(error) return showToast(error.message);
+      await refreshAll(); renderApp(); showToast('Atração excluída.');
+    }
+
+    async function deleteAlarm(id){
+      if(!confirm('Excluir este alarme manual?')) return;
+      const {error} = await state.supabase.from('alarms').delete().eq('id', id);
+      if(error) return showToast(error.message);
+      await refreshAll(); renderApp(); showToast('Alarme excluído.');
     }
 
     function renderChat(){
