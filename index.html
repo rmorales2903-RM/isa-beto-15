@@ -325,6 +325,7 @@
       currentTrip: null,
       currentTab: 'roteiro',
       currentFamily: null,
+      currentMember: null,
       familyPinVerified: false,
       familyPin: '',
       cache: {
@@ -543,8 +544,14 @@
 
       if(state.currentFamily){
         const match = state.cache.families.find(f=>f.id === state.currentFamily.id);
-        if(!match){ state.currentFamily = null; state.familyPinVerified=false; state.familyPin=''; }
+        if(!match){ state.currentFamily = null; state.currentMember = null; state.familyPinVerified=false; state.familyPin=''; persistCurrentMember(''); }
         else state.currentFamily = match;
+      }
+      restoreCurrentMember();
+      if(state.currentMember){
+        const matchMember = state.cache.members.find(m=>m.id === state.currentMember.id);
+        if(!matchMember){ state.currentMember = null; persistCurrentMember(''); }
+        else state.currentMember = matchMember;
       }
     }
 
@@ -554,7 +561,7 @@
       $('#tripDates').textContent = `${formatDate(state.currentTrip.start_date)} até ${formatDate(state.currentTrip.end_date)}`;
       $('#tripCode').textContent = state.currentTrip.code;
       $('#topTripLabel').textContent = state.currentTrip.name;
-      $('#familyBadge').textContent = state.currentFamily ? `${state.currentFamily.name}${state.familyPinVerified ? ' • PIN ativo' : ''}` : 'Sem família ativa';
+      $('#familyBadge').textContent = state.currentFamily ? `${state.currentFamily.name}${state.familyPinVerified ? ' • PIN ativo' : ''}${state.currentMember ? ' • ' + state.currentMember.name : ''}` : 'Sem família ativa';
       const inviteBtn = $('#btnInvite');
       if(inviteBtn) inviteBtn.textContent = 'Enviar no WhatsApp';
       const appCard = $('#screenApp .card');
@@ -667,6 +674,34 @@
     function setRateioConfig(cfg){
       if(!state.currentTrip) return;
       localStorage.setItem(`vg_rateio_cfg_${state.currentTrip.id}`, JSON.stringify(cfg||{participants:[]}));
+    }
+
+    function getCurrentMemberKey(){ return state.currentTrip ? `vg_current_member_${state.currentTrip.id}` : 'vg_current_member'; }
+    function persistCurrentMember(memberId){
+      if(!state.currentTrip) return;
+      if(memberId) localStorage.setItem(getCurrentMemberKey(), memberId);
+      else localStorage.removeItem(getCurrentMemberKey());
+    }
+    function restoreCurrentMember(){
+      if(!state.currentTrip) return;
+      const memberId = localStorage.getItem(getCurrentMemberKey());
+      if(!memberId){ state.currentMember = null; return; }
+      const member = state.cache.members.find(m=>m.id===memberId);
+      if(!member){ state.currentMember = null; persistCurrentMember(''); return; }
+      state.currentMember = member;
+      const fam = state.cache.families.find(f=>f.id===member.family_id);
+      if(fam){
+        state.currentFamily = fam;
+      }
+    }
+    function setCurrentMember(memberId){
+      const member = state.cache.members.find(m=>m.id===memberId) || null;
+      state.currentMember = member;
+      persistCurrentMember(member?.id || '');
+      return member;
+    }
+    function currentMemberLabel(){
+      return state.currentMember ? `${state.currentMember.name}` : 'Pessoa não identificada';
     }
     function calculateRateioSettlement(participantIds){
       const selected = [...new Set((participantIds||[]).filter(Boolean))];
@@ -1645,7 +1680,7 @@ END:VCALENDAR`;
       btn.onclick = async ()=>{
         const texto = input.value.trim();
         if(!texto) return;
-        const memberName = state.currentFamily ? `${state.currentFamily.name}` : 'Convidado';
+        const memberName = state.currentMember ? state.currentMember.name : (state.currentFamily ? `${state.currentFamily.name}` : 'Convidado');
         const {error} = await state.supabase.from('messages').insert({trip_id:state.currentTrip.id, member_name:memberName, texto});
         if(error) return showToast(error.message);
         input.value=''; await refreshAll(); renderApp();
@@ -1669,7 +1704,7 @@ END:VCALENDAR`;
       const btnShare = el('button','btn','Compartilhar minha localização');
       btnShare.onclick = async ()=>{
         if(!state.currentFamily) return showToast('Selecione sua família antes.');
-        const member = membersByFamily(state.currentFamily.id)[0];
+        const member = state.currentMember || membersByFamily(state.currentFamily.id)[0];
         if(!member) return showToast('Cadastre ao menos um membro da sua família primeiro.');
         if(!navigator.geolocation) return showToast('Geolocalização não suportada.');
         navigator.geolocation.getCurrentPosition(async pos=>{
@@ -1771,7 +1806,7 @@ END:VCALENDAR`;
         if(!file) return showToast('Selecione uma imagem.');
         const url = await uploadFile('galeria', file, `${state.currentTrip.id}/gallery/${Date.now()}_${file.name}`);
         if(!url) return;
-        const uploader = state.currentFamily ? membersByFamily(state.currentFamily.id)[0] : null;
+        const uploader = state.currentMember || (state.currentFamily ? membersByFamily(state.currentFamily.id)[0] : null);
         const {error} = await state.supabase.from('gallery').insert({
           trip_id: state.currentTrip.id,
           url,
@@ -1834,6 +1869,8 @@ END:VCALENDAR`;
             <h4>Entrar em uma família existente</h4>
             <div class="field"><label>Família</label><select id="familySelect"><option value="">Selecione</option>${options}</select></div>
             <div class="field"><label>PIN da família</label><input id="familyPinInput" type="password" placeholder="4 a 6 dígitos"></div>
+            <div class="field"><label>Quem está usando este aparelho?</label><select id="memberSelect"><option value="">Vou escolher depois</option></select></div>
+            <div class="fine">Depois do PIN, o sistema usa esse nome na localização, chat e uploads.</div>
             <div class="btn-row" style="margin-top:12px"><button class="btn" id="btnEnterFamily">Confirmar PIN</button></div>
           </div>
           <div>
@@ -1844,6 +1881,15 @@ END:VCALENDAR`;
           </div>
         </div>
       `);
+      const syncFamilyMembers = ()=>{
+        const fam = state.cache.families.find(f=>f.id === $('#familySelect').value);
+        const memberSelect = $('#memberSelect');
+        if(!memberSelect) return;
+        const options = fam ? membersByFamily(fam.id).map(m=>`<option value="${m.id}" ${state.currentMember && state.currentMember.id===m.id ? 'selected' : ''}>${escapeHtml(m.name)}</option>`).join('') : '';
+        memberSelect.innerHTML = `<option value="">Vou escolher depois</option>${options}`;
+      };
+      $('#familySelect').onchange = syncFamilyMembers;
+      syncFamilyMembers();
       $('#btnEnterFamily').onclick = ()=>{
         const fam = state.cache.families.find(f=>f.id === $('#familySelect').value);
         const pin = $('#familyPinInput').value.trim();
@@ -1852,7 +1898,11 @@ END:VCALENDAR`;
         state.currentFamily = fam;
         state.familyPinVerified = true;
         state.familyPin = pin;
+        const chosenMemberId = $('#memberSelect').value;
+        if(chosenMemberId) setCurrentMember(chosenMemberId);
+        else if(state.currentMember && state.currentMember.family_id !== fam.id) setCurrentMember('');
         closeModal(); renderApp();
+        if(!state.currentMember) openMemberIdentitySelector();
       };
       $('#btnCreateFamily').onclick = async ()=>{
         const name = $('#newFamilyName').value.trim();
@@ -1860,10 +1910,29 @@ END:VCALENDAR`;
         if(!name || pin.length < 4) return showToast('Informe nome e PIN com pelo menos 4 caracteres.');
         const {data,error} = await state.supabase.from('families').insert({trip_id:state.currentTrip.id, name, pin_hash:pin}).select().single();
         if(error) return showToast(error.message);
-        state.currentFamily = data; state.familyPinVerified = true; state.familyPin = pin;
+        state.currentFamily = data; state.currentMember = null; persistCurrentMember(''); state.familyPinVerified = true; state.familyPin = pin;
         await refreshAll(); closeModal(); renderApp();
         openFamilyMembersManager();
       };
+    }
+
+    function openMemberIdentitySelector(){
+      if(!state.currentFamily) return;
+      const members = membersByFamily(state.currentFamily.id);
+      if(!members.length) return;
+      openModal(`
+        <h3>Quem está usando este aparelho?</h3>
+        <div class="muted">Selecione seu nome para o sistema usar na localização, no chat e nos uploads.</div>
+        <div class="list" style="margin-top:14px">
+          ${members.map(m=>`<button class="btn secondary member-identity" data-id="${m.id}" style="justify-content:flex-start;text-align:left;width:100%">${escapeHtml(m.name)}</button>`).join('')}
+        </div>
+      `);
+      document.querySelectorAll('.member-identity').forEach(btn=> btn.onclick = ()=>{
+        setCurrentMember(btn.dataset.id);
+        closeModal();
+        renderApp();
+        showToast(`Identificado como ${currentMemberLabel()}.`);
+      });
     }
 
     function openFamilyMembersManager(){
@@ -1871,7 +1940,7 @@ END:VCALENDAR`;
       const members = membersByFamily(state.currentFamily.id);
       openModal(`
         <h3>${escapeHtml(state.currentFamily.name)}</h3>
-        <div class="muted">Cadastre os membros da família e os documentos base.</div>
+        <div class="muted">Cadastre os membros da família, os documentos base e identifique quem está usando este aparelho.</div>
         <div class="divider"></div>
         <div class="form-grid">
           <div class="field"><label>Nome do membro</label><input id="newMemberName" placeholder="Rodrigo Morales"></div>
@@ -1880,12 +1949,13 @@ END:VCALENDAR`;
           <div class="field"><label>Telefone emergência</label><input id="newMemberEmergFone" placeholder="(17) 99999-9999"></div>
           <div class="field" style="grid-column:1/-1"><label>Informações médicas</label><textarea id="newMemberInfo" placeholder="Alergias, tipo sanguíneo, remédio contínuo..."></textarea></div>
         </div>
-        <div class="btn-row" style="margin-top:12px"><button class="btn" id="btnAddMember">Adicionar membro</button></div>
+        <div class="btn-row" style="margin-top:12px"><button class="btn" id="btnAddMember">Adicionar membro</button><button class="btn secondary" id="btnIdentifyMember">Identificar usuário neste aparelho</button></div>
         <div class="divider"></div>
         <div class="list">
           ${members.map(m=>`<div class="item"><b>${escapeHtml(m.name)}</b><div class="fine">${escapeHtml(m.emergencia_nome || '')} ${escapeHtml(m.emergencia_fone || '')}</div></div>`).join('') || '<div class="empty">Nenhum membro cadastrado ainda.</div>'}
         </div>
       `);
+      $('#btnIdentifyMember').onclick = ()=> openMemberIdentitySelector();
       $('#btnAddMember').onclick = async ()=>{
         const payload = {
           family_id: state.currentFamily.id,
@@ -1939,7 +2009,7 @@ END:VCALENDAR`;
       $('#btnOpenFamilyModal').onclick = ()=> state.currentTrip ? openFamilyAccess('Selecione, crie ou confirme sua família.') : showToast('Entre em uma viagem primeiro.');
       $('#btnSOS').onclick = openSOS;
       $('#btnLogout').onclick = ()=>{
-        state.currentTrip = null; state.currentFamily = null; state.familyPinVerified = false; state.familyPin=''; switchScreen('home');
+        state.currentTrip = null; state.currentFamily = null; state.currentMember = null; state.familyPinVerified = false; state.familyPin=''; persistCurrentMember(''); switchScreen('home');
       };
     }
 
